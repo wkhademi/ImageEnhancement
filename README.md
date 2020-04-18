@@ -12,5 +12,6 @@ CSC/CPE Department.
 
 ## Models
 Implementations of the following models are provided:
-- CycleGAN
-- EnlightenGAN
+- [CycleGAN](https://arxiv.org/pdf/1703.10593.pdf)
+- [EnlightenGAN](https://arxiv.org/pdf/1906.06972.pdf)
+- [DeshadowNet](http://openaccess.thecvf.com/content_cvpr_2017/papers/Qu_DeshadowNet_A_Multi-Context_CVPR_2017_paper.pdf)

@@ -4,9 +4,37 @@ import numpy as np
 from PIL import Image
 
 
-def augment(img, opt):
-    pass
+def augment(img, opt, grayscale=False):
+    img = convert_2_grayscale(img) if grayscale else convert_2_rgb(img)
 
+    if self.opt.scale == 'power_2':
+        img = make_power_2(img, 4)
+    elif self.opt.scale == 'center_crop':
+        img = center_crop(img, self.opt.crop_size, self.opt.crop_size)
+    elif self.opt.scale == 'random_crop':
+        img = random_crop(img, self.opt.crop_size, self.opt.crop_size)
+
+    if self.opt.flip:
+        orientation = random.randint(0,2)
+        img = flip(img, flip=orientation)
+
+    img = np.array(img, dtype=np.float32)[None,:,:,:]
+
+    if self.norm_type == 'subtract_mean':
+        img = subtract_mean(img, mean=self.opt.norm_mean, per_channel=self.opt.per_channel_norm)
+    elif self.norm_type == 'normalize':
+        img = normalize(img, min_val=self.opt.norm_min, max_val=self.opt.norm_max)
+    elif self.norm_type == 'standardize':
+        img = standardize(img, mean=self.opt.norm_mean, per_channel=self.opt.per_channel_norm,
+                            min_val=self.opt.norm_min, max_val=self.opt.norm_max)
+
+    return img
+
+def convert_2_grayscale(img):
+    return img.convert('L')
+
+def convert_2_rgb(img):
+    return img.convert('RGB')
 
 def make_power_2(img, base, method=Image.BICUBIC):
     width, height = img.size
@@ -42,8 +70,8 @@ def random_crop(img, crop_height, crop_width):
         print("Requested crop greater than image size")
         sys.exit(0)
 
-    left = random.randint(0, int(width - crop_width // 2))
-    upper = random.randint(0, int(height - crop_height // 2))
+    left = random.randint(0, int(width - crop_width // 2) - 1)
+    upper = random.randint(0, int(height - crop_height // 2) - 1)
     right = left + crop_width
     lower = upper + crop_height
 

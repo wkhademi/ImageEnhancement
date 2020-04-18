@@ -5,6 +5,12 @@ from utils import im_utils, file_utils
 
 
 class UnpairedLoader(BaseLoader):
+    """
+    Dataloader meant for loading in two unpaired sets of images.
+
+    Image set A is loaded in from path set by argument '--dirA /path/to/dataA'
+    Image set B is loaded in from path set by argument '--dirB /path/to/dataB'
+    """
     def __init__(self, opt):
         BaseLoader.__init__(self, opt)
         self.dirA = opt.dirA
@@ -24,10 +30,10 @@ class UnpairedLoader(BaseLoader):
         pathA = self.pathsA[self.indexA]
         pathB = self.pathsB[self.indexB]
 
-        imgA = Image.open(pathA).convert('RGB')
-        imgA = im_utils.augment(imgA, self.opt)
-        imgB = Image.open(pathB).convert('RGB')
-        imgB = im_utils.augment(imgB, self.opt)
+        imgA = Image.open(pathA)
+        imgA = im_utils.augment(imgA, self.opt, grayscale=(self.opt.in_channels==1))
+        imgB = Image.open(pathB)
+        imgB = im_utils.augment(imgB, self.opt, grayscale=(self.opt.out_channels==1))
 
         self.indexA += 1
         self.indexB += 1

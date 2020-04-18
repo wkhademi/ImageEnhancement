@@ -5,6 +5,11 @@ from utils import im_utils, file_utils
 
 
 class SingleLoader(BaseLoader):
+    """
+    Dataloader meant for loading a single set of images.
+
+    Images are loaded from the path set by argument '--dir /path/to/data'
+    """
     def __init__(self, opt):
         BaseLoader.__init__(self, opt)
         self.dir = opt.dir
@@ -19,8 +24,8 @@ class SingleLoader(BaseLoader):
 
     def __next__(self):
         path = self.paths[self.index]
-        img = Image.open(path).convert('RGB')
-        img = im_utils.augment(img, self.opt)
+        img = Image.open(path)
+        img = im_utils.augment(img, self.opt, grayscale=(self.opt.in_channels==1))
 
         self.index += 1
 
