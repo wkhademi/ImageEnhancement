@@ -3,6 +3,11 @@ import random
 import numpy as np
 from PIL import Image
 
+
+def augment(img, opt):
+    pass
+
+
 def make_power_2(img, base, method=Image.BICUBIC):
     width, height = img.size
 
@@ -57,7 +62,7 @@ def flip(img, flip=0):
 def subtract_mean(imgs, mean=None, per_channel=False):
     if mean is None:
         if per_channel:
-            imgs = imgs - np.mean(imgs, axis=(1,2))
+            imgs = imgs - np.mean(imgs, axis=(1, 2))
         else:
             imgs = imgs - np.mean(imgs)
     else:
