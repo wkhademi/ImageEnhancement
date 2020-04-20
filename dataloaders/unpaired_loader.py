@@ -1,12 +1,12 @@
 import random
 from PIL import Image
-from dataloaders import BaseLoader
 from utils import im_utils, file_utils
+from dataloaders.base_loader import BaseLoader
 
 
 class UnpairedLoader(BaseLoader):
     """
-    Dataloader meant for loading in two unpaired sets of images.
+    Data loader meant for loading in two unpaired sets of images.
 
     Image set A is loaded in from path set by argument '--dirA /path/to/dataA'
     Image set B is loaded in from path set by argument '--dirB /path/to/dataB'

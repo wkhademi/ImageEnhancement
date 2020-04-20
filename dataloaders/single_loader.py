@@ -1,12 +1,12 @@
 import random
 from PIL import Image
-from dataloaders import BaseLoader
 from utils import im_utils, file_utils
+from dataloaders.base_loader import BaseLoader
 
 
 class SingleLoader(BaseLoader):
     """
-    Dataloader meant for loading a single set of images.
+    Data loader meant for loading a single set of images.
 
     Images are loaded from the path set by argument '--dir /path/to/data'
     """

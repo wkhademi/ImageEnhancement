@@ -10,7 +10,7 @@ class BaseModel(ABC):
         self.opt = opt
 
     @abstractmethod
-    def input(self):
+    def set_input(self):
         raise NotImplementedError
 
     @abstractmethod
@@ -18,9 +18,17 @@ class BaseModel(ABC):
         raie NotImplementedError
 
     @abstractmethod
-    def loss(self):
+    def __loss(self):
         raise NotImplementedError
 
     @abstractmethod
-    def optimizer(self):
+    def __optimizer(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def load(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def save(self):
         raise NotImplementedError

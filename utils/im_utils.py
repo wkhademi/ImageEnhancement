@@ -30,11 +30,14 @@ def augment(img, opt, grayscale=False):
 
     return img
 
+
 def convert_2_grayscale(img):
     return img.convert('L')
 
+
 def convert_2_rgb(img):
     return img.convert('RGB')
+
 
 def make_power_2(img, base, method=Image.BICUBIC):
     width, height = img.size

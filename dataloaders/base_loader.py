@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 class BaseLoader(ABC):
     """
     Abstract Base Class for defining the necessary methods needed for a
-    dataloader.
+    data loader.
     """
     def __init__(self, opt):
         self.opt = opt
