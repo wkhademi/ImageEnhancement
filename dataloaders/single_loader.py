@@ -25,7 +25,7 @@ class SingleLoader(BaseLoader):
     def __next__(self):
         path = self.paths[self.index]
         img = Image.open(path)
-        img = im_utils.augment(img, self.opt, grayscale=(self.opt.in_channels==1))
+        img = im_utils.augment(img, self.opt, grayscale=(self.opt.channels==1))
 
         self.index += 1
 

@@ -17,7 +17,7 @@ class UnpairedDataset(BaseDataset):
         self.pathsA = file_utils.load_paths(self.dirA)
         self.pathsB = file_utils.load_paths(self.dirB)
 
-    def generate(self, cacheA=True, cacheB=True):
+    def generate(self, cacheA=True, cacheB=True, shuffler_buffer_size=1000):
         datasetA = tf.data.Dataset.from_tensor_slices(self.pathsA)
         datasetA = datasetA.map(self._preprocess, num_parallel_calls=AUTOTUNE)
 
@@ -27,6 +27,7 @@ class UnpairedDataset(BaseDataset):
             else:
                 datasetA = datasetA.cache()
 
+        datasetA = datasetA.shuffle(buffer_size=shuffle_buffer_size)
         datasetA = datasetA.repeat()
         datasetA = datasetA.batch(self.opt.batch_size)
         datasetA = datasetA.prefetch(AUTOTUNE)
@@ -40,6 +41,7 @@ class UnpairedDataset(BaseDataset):
             else:
                 datasetB = datasetB.cache()
 
+        datasetB = datasetB.shuffle(buffer_size=shuffle_buffer_size)
         datasetB = datasetB.repeat()
         datasetB = datasetB.batch(self.opt.batch_size)
         datasetB = datasetB.prefetch(AUTOTUNE)
@@ -48,9 +50,12 @@ class UnpairedDataset(BaseDataset):
 
     def _preprocess(self, path):
         img = tf.io.read_file(path)
-        img = tf.image.decode_jpeg(img, channels=self.opt.in_channels)
+        img = tf.image.decode_jpeg(img, channels=self.opt.channels)
+        img = tf.image.resize(img, [self.opt.scale_size, self.opt.scale_size],
+                              method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+        img = tf.image.random_crop(img, size=[self.opt.crop_size, self.opt.crop_size, self.opt.channels])
+        img = tf.image.random_flip_left_right(img)
         img = tf.image.convert_image_dtype(img, dtype=tf.float32)
         img = (img / 127.5) - 1.
-        img = tf.image.resize(img, [self.opt.crop_size, self.opt.crop_size])
 
         return img

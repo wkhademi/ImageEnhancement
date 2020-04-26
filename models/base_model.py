@@ -11,25 +11,5 @@ class BaseModel(ABC):
         self.training = training
 
     @abstractmethod
-    def set_input(self):
-        raise NotImplementedError
-
-    @abstractmethod
     def build(self):
         raie NotImplementedError
-
-    @abstractmethod
-    def __loss(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def __optimizer(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def load(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def save(self):
-        raise NotImplementedError

@@ -6,7 +6,7 @@ def CycleGANOptions(BaseOptions):
     """
     Additional arguments for CycleGAN model.
     """
-    def __init__(self, training):
+    def __init__(self, training=True):
         BaseOptions.__init__(self)
 
         # dataset arguments
@@ -16,11 +16,10 @@ def CycleGANOptions(BaseOptions):
         else:  # assumes single data loader is used during testing
             self.parser.add_argument('--dir', type=str, required=True, help='Path to test dataset')
 
-        self.parser.add_argument('--crop_size', type=int, default=256, help='Crop images to specific size')
-
         # model arguments
-        self.parser.add_argument('--lamA', type=float, default=10.0, help='weight for forward cycle loss (A -> B -> A)')
-        self.parser.add_argument('--lamB', type=float, default=10.0, help='weight for backward cycle loss (B -> A -> B)')
+        self.parser.add_argument('--lamA', type=float, default=10.0, help='weight for forward cycle loss (A->B->A)')
+        self.parser.add_argument('--lamB', type=float, default=10.0, help='weight for backward cycle loss (B->A->B)')
+        self.parser.add_argument('--lambda_ident', type=float, default=0.0, help='weight for identity loss')
         self.parser.add_argument('--ngf', type=int, default=64, help='# of filters in first conv. layer of generator')
         self.parser.add_argument('--ndf', type=int, default=64, help='# of filters in first conv. layer of discriminator')
         self.parser.add_argument('--netG', type=str, default='resnet_9blocks',

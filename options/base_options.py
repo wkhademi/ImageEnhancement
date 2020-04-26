@@ -10,13 +10,14 @@ class BaseOptions(ABC):
         self.parser = argparse.ArgumentParser()
 
         # dataset arguments
-        self.parser.add_argument('--data_loader', required=True,
+        self.parser.add_argument('--data_loader', type=str, default='unpaired'
                                 help='Specify which data loader to use [single | paired | unpaired]')
         self.parser.add_argument('--batch_size', type=int, default=32, help='Input batch size')
-        self.parser.add_argument('--in_channels', type=int, default=3, help='Number of channels of input images')
-        self.parser.add_argument('--out_channels', type=int, default=3, help='Number of channels of output images')
+        self.parser.add_argument('--channels', type=int, default=3, help='Number of channels of input images')
         self.parser.add_argument('--scale', type=str, default='make_power_2',
                                 help='Rescale images [make_power_2 | center_crop | random_crop]')
+        self.parser.add_argument('--scale_size', type=int, default=286, help='Resize images to specific size')
+        self.parser.add_argument('--crop_size', type=int, default=256, help='Crop images to specific size')
         self.parser.add_argument('--flip', action='store_true', help='Randomly flip images if set')
         self.parser.add_argument('--norm_type', type=str, default='standardize',
                                 help='Type of data normalization to perform [standardize | normalize | subtract_mean]')
@@ -34,6 +35,20 @@ class BaseOptions(ABC):
                                 help='Type of weight initialization [normal | xavier | orthogonal]')
         self.parser.add_argument('--weight_init_gain', type=float, default=1.0,
                                 help='Scaling factor of weight initialization')
+
+        # training arguments
+        self.parser.add_argument('--load_model', type=str, default=None,
+                                help='Load a model to continue training where you left off.')
+        self.parser.add_argument('--display_frequency', type=int, default=25,
+                                help='The number of training steps before printing loss')
+        self.parser.add_argument('--checkpoint_frequency', type=int, default=100,
+                                help='The number of training steps before saving a checkpoint')
+
+        # testing arguments
+        self.parser.add_argument('--num_samples', type=int, default=32,
+                                help='Number of samples you would like to generate.')
+        self.parser.add_argument('--sample_directory', type=str, default='./samples/',
+                                help='Directory in which samples will be saved to.')
 
     @abstractmethod
     def parse(self):

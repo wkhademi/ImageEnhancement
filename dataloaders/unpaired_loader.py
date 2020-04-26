@@ -31,9 +31,9 @@ class UnpairedLoader(BaseLoader):
         pathB = self.pathsB[self.indexB]
 
         imgA = Image.open(pathA)
-        imgA = im_utils.augment(imgA, self.opt, grayscale=(self.opt.in_channels==1))
+        imgA = im_utils.augment(imgA, self.opt, grayscale=(self.opt.channels==1))
         imgB = Image.open(pathB)
-        imgB = im_utils.augment(imgB, self.opt, grayscale=(self.opt.out_channels==1))
+        imgB = im_utils.augment(imgB, self.opt, grayscale=(self.opt.channels==1))
 
         self.indexA += 1
         self.indexB += 1
