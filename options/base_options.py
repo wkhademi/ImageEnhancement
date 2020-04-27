@@ -32,7 +32,7 @@ class BaseOptions(ABC):
         self.parser.add_argument('--layer_norm_type', type=str, default='batch',
                                 help='Type of normalization [batch | instance]')
         self.parser.add_argument('--weight_init_type', type=str, default='normal',
-                                help='Type of weight initialization [normal | xavier | orthogonal]')
+                                help='Type of weight initialization [normal | he | orthogonal]')
         self.parser.add_argument('--weight_init_gain', type=float, default=1.0,
                                 help='Scaling factor of weight initialization')
 
