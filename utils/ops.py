@@ -1,30 +1,133 @@
-def batch_normalization(input, training, decay=0.999, eps=1e-3):
+def conv(input, in_channels, out_channels, filter_size, stride, padding_type='SAME',
+         weight_init_type='normal', weight_init_gain=1.0, use_bias=True,
+         bias_const=0.0, norm_type='instance', activation_type='ReLU', slope=0.2,
+         is_training=True, scope=None, reuse=False):
+    """
+    Convolution-Normalization-Activation layer.
+    """
+    with tf.variable_scope(scope, reuse=reuse):
+        # weight initialization
+        weights = __weights_init(filter_size, in_channels, out_channels,
+                                 init_type=weight_init_type, init_gain=weight_init_gain)
+
+        if padding_type == 'REFLECT': # add reflection padding to input
+            padding = __fixed_padding(filter_size)
+            padded_input = tf.pad(input, padding, padding_type)
+            padding_type = 'VALID'
+        elif padding_type == 'VALID':
+            padded_input = input
+        elif padding_type == 'SAME':
+            padded_input = input
+
+        layer = tf.nn.conv2d(padded_input, weights, strides=[1, stride, stride, 1],
+                             padding=padding_type)
+
+        if use_bias:
+            biases = __biases_init(out_channels, constant=bias_const)
+            layer = tf.nn.bias_add(layer, biases)
+
+        # instance, batch, or no normalization
+        layer = __normalization(layer, is_training, norm_type=norm_type)
+
+        # relu, leaky relu, or no activation
+        layer = __activation_fn(layer, slope=slope, activation_type=activation_type)
+
+    return layer
+
+
+def transpose_conv(input, in_channels, out_channels, filter_size=3, stride=2,
+                   weight_init_type='normal', weight_init_gain=1.0, use_bias=True,
+                   bias_const=0.0, norm_type='instance', activation_type='ReLU',
+                   is_training=True, scope=None, reuse=False):
+    """
+    TransposeConvolution-Normalization-Activation layer.
+    """
+    with tf.variable_scope(scope, reuse=reuse):
+        shape = input.get_shape().as_list()
+        batch_size = shape[0]
+        out_shape = 2*shape[1]
+
+        # weight initialization
+        weights = __weights_init(filter_size, out_channels, in_channels,
+                                 init_type=weight_init_type, init_gain=weight_init_gain)
+
+        layer = tf.nn.conv2d_transpose(input, weights,
+                                       output_shape=[batch_size, out_shape, out_shape, out_channels],
+                                       strides=[1, stride, stride, 1], padding='SAME')
+
+        if use_bias:
+            biases = __biases_init(out_channels, constant=bias_const)
+            layer = tf.nn.bias_add(layer, biases)
+
+        # instance, batch, or no normalization
+        layer = __normalization(layer, is_training=is_training, norm_type=norm_type)
+
+        # relu, leaky relu, or no activation
+        layer = __activation_fn(layer, activation_type=activation_type)
+
+    return layer
+
+
+def __normalization(input, is_training=True, norm_type='instance'):
+    """
+    Normalization to be applied to layer.
+    """
+    if norm_type == 'batch':
+        norm = __batch_normalization(input, is_training=is_training)
+    elif norm_type == 'instance':
+        norm = __instance_normalization(input)
+    else:
+        norm = input
+
+    return norm
+
+
+def __activation_fn(input, slope=0.2, activation_type='ReLU'):
+    """
+    Non-linear activation to be applied to layer.
+    """
+    if activation_type == 'ReLU':
+        activation = tf.nn.relu(input, name='relu')
+    elif activation_type == 'LeakyReLU':
+        activation= tf.nn.leaky_relu(input, alpha=slope, name='leakyrelu')
+    elif activation_type == 'tanh':
+        activation = tf.nn.tanh(input, name='tanh')
+    elif activation_type == 'sigmoid':
+        activation = tf.nn.sigmoid(input, name='sigmoid')
+    else:
+        activation = input
+
+    return activation
+
+
+def __batch_normalization(input, is_training, decay=0.999, eps=1e-3):
     """
     Compute batch normalization on the input. If training use the batch mean and
     batch variance. If testing use the population mean and population variance.
     """
-    offset = tf.Variable(tf.zeros(input.get_shape().as_list()[1:]), name='beta')
-    scale = tf.Variable(tf.ones(), name='gamma')
-    population_mean = tf.Variable(tf.zeros())
-    population_var = tf.Variable(tf.ones())
+    shape = input.get_shape().as_list()[-1]  # get out channels
+    beta = tf.Variable(tf.zeros(shape), name='beta')
+    gamma = tf.Variable(tf.ones(shape), name='gamma')
+    population_mean = tf.Variable(tf.zeros(shape))
+    population_var = tf.Variable(tf.ones(shape))
 
-    batch_mean, batch_var = tf.nn.moments(input, axis=[0])
+    batch_mean, batch_var = tf.nn.moments(input, axis=[0,1,2])
     train_mean = tf.assign(population_mean, decay*population_mean + (1-decay)*batch_mean)
     train_var = tf.assign(population_var, decay*population_var + (1-decay)*batch_var)
 
     def batch_statistics():
         with tf.control_dependencies([train_mean, train_var]):
             return tf.nn.batch_normalization(input, batch_mean, batch_var,
-                                             offset, scale, eps, name='batch_norm')
+                                             beta, gamma, eps, name='batch_norm')
 
     def population_statistics():
         return tf.nn.batch_normalization(input, population_mean, population_var,
-                                         offset, scale, eps, name='batch_norm')
+                                         beta, gamma, eps, name='batch_norm')
 
-    return tf.cond(training, batch_statistics, population_statistics)
+    return tf.cond(is_training, batch_statistics, population_statistics)
 
 
-def instance_normalization(input, eps=1e-9):
+def __instance_normalization(input, eps=1e-9):
     """
     Compute instance normalization on the input.
     """
@@ -33,21 +136,20 @@ def instance_normalization(input, eps=1e-9):
     return (input - mean) / tf.sqrt(var + eps)
 
 
-def __weights_init(size,
-                   in_channels,
-                   out_channels,
-                   init_type='normal',
-                   init_gain=1.0):
+def __fixed_padding(filter_size):
     """
-        Initialize weights given a specific initialization type.
-        Args:
-            size: Size of filter matrix
-            in: # of channels for input
-            out: # of channels desired for output
-            init_type: Type of weight initialization
-            init_gain: Scaling factor for weight initialization
-        Returns:
-            weights: Weight tensor
+    Calculate padding needed to keep input from being downsampled.
+    """
+    pad_total = filter_size - 1
+    pad = pad_total // 2
+    padding = [[0,0], [pad, pad], [pad, pad], [0, 0]]
+
+    return padding
+
+
+def __weights_init(size, in_channels, out_channels, init_type='normal', init_gain=1.0):
+    """
+    Initialize weights given a specific initialization type.
     """
     if init_type == 'normal':
         init = tf.initializers.truncated_normal(stddev=init_gain)
@@ -60,3 +162,13 @@ def __weights_init(size,
                               dtype=tf.float32, initializer=init)
 
     return weights
+
+
+def __biases_init(size, constant=0.0):
+    """
+    Initialize biases to a given constant.
+    """
+    biases = tf.get_variable("biases", shape=[size], dtype=tf.float32,
+                             initializer=tf.constant_initializer(constant))
+
+    return biases

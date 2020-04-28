@@ -2,6 +2,8 @@ import tensorflow as tf
 from models.base_model import BaseModel
 from datasets.single_dataset import SingleDataset
 from datasets.unpaired_dataset import UnpairedDataset
+from models.generators.cyclegan_generators import Generator
+from models.discriminators.cyclegan_discriminators import Discriminator
 
 
 class CycleGANModel(BaseModel):
@@ -39,13 +41,25 @@ class CycleGANModel(BaseModel):
         Build TensorFlow graph for CycleGAN model.
         """
         # add ops for generator (A->B) to graph
-        self.G = None
+        self.G = Generator(channels=self.opt.channels, netG=self.opt.netG, ngf=self.opt.ngf,
+                           norm_type=self.opt.layer_norm_type, init_type=self.opt.weight_init_type,
+                           init_gain=self.opt.weight_init_gain, dropout=self.opt.dropout,
+                           training=self.training, self.name='G')
 
         if self.training:
             # add ops for other generator (B->A) and discriminators to graph
-            self.F = None
-            self.D_A = None
-            self.D_B = None
+            self.F = Generator(channels=self.opt.channels, netG=self.opt.netG, ngf=self.opt.ngf,
+                               norm_type=self.opt.layer_norm_type, init_type=self.opt.weight_init_type,
+                               init_gain=self.opt.weight_init_gain, dropout=self.opt.dropout,
+                               training=self.training, self.name='F')
+            self.D_A = Discriminator(channels=self.opt.channels, netD=self.opt.netD, n_layers=self.opt.n_layers,
+                                     ndf=self.opt.ndf, norm_type=self.opt.layer_norm_type,
+                                     init_type=self.opt.weight_init_type, init_gain=self.opt.weight_init_gain,
+                                     training=self.is_training, gan_mode=self.opt.gan_mode, name='D_A')
+            self.D_B = Discriminator(channels=self.opt.channels, netD=self.opt.netD, n_layers=self.opt.n_layers,
+                                     ndf=self.opt.ndf, norm_type=self.opt.layer_norm_type,
+                                     init_type=self.opt.weight_init_type, init_gain=self.opt.weight_init_gain,
+                                     training=self.is_training, gan_mode=self.opt.gan_mode, name='D_B')
 
             # generate fake images
             fakeA = self.F(self.realB)
