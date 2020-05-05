@@ -4,7 +4,7 @@ from utils import ops
 
 class Generator:
     def __init__(self, channels=3, netG='resnet_9blocks', ngf=64, norm_type='instance',
-                 init_type='normal', init_gain=1.0, dropout=False, is_training=True,
+                 init_type='normal', init_gain=1.0, dropout=False, training=True,
                  name=None):
         self.channels = channels
         self.netG = netG
@@ -13,7 +13,7 @@ class Generator:
         self.init_type = init_type
         self.init_gain = init_gain
         self.dropout = dropout
-        self.is_training = is_training
+        self.is_training = training
         self.name = name
         self.reuse = False
 
@@ -44,19 +44,19 @@ class Generator:
         return output
 
     def resnet_generator(self, input, channels=3, ngf=64, norm_type='instance',
-                         init_type='normal', init_gain=1.0, dropout=False,
+                         init_type='normal', init_gain=1.0, dropout=False, 
                          is_training=True, n_blocks=6):
-    """
-    Resnet-based generator that contains Resnet blocks in between
-    some downsampling and upsampling layers.
-    """
+        """
+        Resnet-based generator that contains Resnet blocks in between
+        some downsampling and upsampling layers.
+        """
         def resnet_block(input, channels, filter_size=3, stride=1, norm_type='instance',
                          activation_type='ReLU', is_training=True, dropout=False,
                          scope=None, reuse=False):
-        """
-        Residual block that contains two 3x3 convolution layers with the same number
-        of filters on both layer.
-        """
+            """
+            Residual block that contains two 3x3 convolution layers with the same number
+            of filters on both layer.
+            """
             with tf.variable_scope(scope, reuse=reuse):
                 conv1 = ops.conv(input, channels, channels, filter_size=filter_size, stride=stride,
                                  padding_type='REFLECT', norm_type=norm_type, activation_type=activation_type,
@@ -71,7 +71,7 @@ class Generator:
 
                 layer = input + conv2
 
-                return layer
+            return layer
 
         # 7x7 convolution-instance norm-relu layer with 64 filters and stride 1
         c7s1_64 = ops.conv(input, in_channels=channels, out_channels=ngf, filter_size=7, stride=1,

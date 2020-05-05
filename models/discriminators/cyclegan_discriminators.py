@@ -5,7 +5,7 @@ from utils import ops
 class Discriminator():
     def __init__(self, channels=3, netD='basic', n_layers=3, ndf=64,
                  norm_type='instance', init_type='normal', init_gain=1.0,
-                 is_training=True, gan_mode='lsgan', name=None):
+                 training=True, gan_mode='lsgan', name=None):
         self.channels = channels
         self.netD = netD
         self.n_layers = n_layers
@@ -13,7 +13,7 @@ class Discriminator():
         self.norm_type = norm_type
         self.init_type = init_type
         self.init_gain = init_gain
-        self.is_training = is_training
+        self.is_training = training
         self.gan_mode = gan_mode
         self.name = name
         self.reuse = False
@@ -45,9 +45,9 @@ class Discriminator():
     def n_layer_discriminator(self, input, channels=3, n_layers=3, ndf=64,
                               norm_type='instance', init_type='normal',
                               init_gain=1.0, is_training=True, sigmoid=None):
-    """
-    N-layer PatchGAN Discriminator
-    """
+        """
+        N-layer PatchGAN Discriminator
+        """
         # first layer does not use instance normalization
         layer = ops.conv(input, in_channels=channels, out_channels=ndf, filter_size=4,
                          stride=2, weight_init_type=init_type, weight_init_gain=init_gain,
@@ -84,9 +84,9 @@ class Discriminator():
     def pixel_discriminator(self, input, channels=3, ndf=64, norm_type='instance',
                             init_type='normal', init_gain=1.0, is_training=True,
                             sigmoid=None):
-    """
-    1x1 PatchGAN Discriminator (pixelGAN)
-    """
+        """
+        1x1 PatchGAN Discriminator (pixelGAN)
+        """
         # 1x1 convolution with 64 filters and no normalization
         layer = ops.conv(input, in_channels=channels, out_channels=ndf, filter_size=1,
                          stride=1, weight_init_type=init_type, weight_init_gain=init_gain,

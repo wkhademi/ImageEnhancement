@@ -2,11 +2,11 @@ import argparse
 from options.base_options import BaseOptions
 
 
-def CycleGANOptions(BaseOptions):
+class CycleGANOptions(BaseOptions):
     """
     Additional arguments for CycleGAN model.
     """
-    def __init__(self, training=True):
+    def __init__(self, training):
         BaseOptions.__init__(self)
 
         # dataset arguments

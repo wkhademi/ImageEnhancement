@@ -1,2 +1,4 @@
 /data
-i*.pyc
+/checkpoints
+*.pyc
+*.tfcache.*

@@ -1,3 +1,6 @@
+import tensorflow as tf
+
+
 def conv(input, in_channels, out_channels, filter_size, stride, padding_type='SAME',
          weight_init_type='normal', weight_init_gain=1.0, use_bias=True,
          bias_const=0.0, norm_type='instance', activation_type='ReLU', slope=0.2,
@@ -44,8 +47,8 @@ def transpose_conv(input, in_channels, out_channels, filter_size=3, stride=2,
     """
     with tf.variable_scope(scope, reuse=reuse):
         shape = input.get_shape().as_list()
-        batch_size = shape[0]
         out_shape = 2*shape[1]
+        batch_size = tf.shape(input)[0]
 
         # weight initialization
         weights = __weights_init(filter_size, out_channels, in_channels,
@@ -111,7 +114,7 @@ def __batch_normalization(input, is_training, decay=0.999, eps=1e-3):
     population_mean = tf.Variable(tf.zeros(shape))
     population_var = tf.Variable(tf.ones(shape))
 
-    batch_mean, batch_var = tf.nn.moments(input, axis=[0,1,2])
+    batch_mean, batch_var = tf.nn.moments(input, axes=[0,1,2])
     train_mean = tf.assign(population_mean, decay*population_mean + (1-decay)*batch_mean)
     train_var = tf.assign(population_var, decay*population_var + (1-decay)*batch_var)
 
@@ -131,7 +134,7 @@ def __instance_normalization(input, eps=1e-9):
     """
     Compute instance normalization on the input.
     """
-    mean, var = tf.nn.moments(input, axis=[1,2], keep_dims=True)
+    mean, var = tf.nn.moments(input, axes=[1,2], keep_dims=True)
 
     return (input - mean) / tf.sqrt(var + eps)
 

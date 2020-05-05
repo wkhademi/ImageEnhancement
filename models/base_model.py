@@ -12,4 +12,4 @@ class BaseModel(ABC):
 
     @abstractmethod
     def build(self):
-        raie NotImplementedError
+        raise NotImplementedError

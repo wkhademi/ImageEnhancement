@@ -10,7 +10,7 @@ class BaseOptions(ABC):
         self.parser = argparse.ArgumentParser()
 
         # dataset arguments
-        self.parser.add_argument('--data_loader', type=str, default='unpaired'
+        self.parser.add_argument('--data_loader', type=str, default='unpaired',
                                 help='Specify which data loader to use [single | paired | unpaired]')
         self.parser.add_argument('--batch_size', type=int, default=32, help='Input batch size')
         self.parser.add_argument('--channels', type=int, default=3, help='Number of channels of input images')

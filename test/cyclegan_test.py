@@ -1,11 +1,13 @@
 import os
 import sys
+import tensorflow as tf
 from test.base_test import BaseTest
 from utils.file_utils import save_image
+from models.CycleGAN_model import CycleGANModel
 from options.cyclegan_options import CycleGANOptions
 
 
-class CycleGANTrain(BaseTrain):
+class CycleGANTest(BaseTest):
     """
     Tester for CycleGAN model.
     """
@@ -31,16 +33,17 @@ class CycleGANTrain(BaseTrain):
 
         with tf.Session(graph=graph) as sess:
             saver.restore(sess, tf.train.latest_checkpoint(checkpoint))  # restore graph and variables
-            samples_dir = os.path.expand_user(self.opt.sample_directory)
+            sess.run(cyclegan.dataA_iter.initializer)  # initialize dataset iterator
+            samples_dir = os.path.expanduser(self.opt.sample_directory)
 
             for idx in range(self.opt.num_samples):
                 generated_image = sess.run(fakeImg)
                 image_name = 'sample' + str(idx) + '.jpg'
-                utils.save_image(generated_image, os.path.join(samples_dir, image_name))
+                save_image(generated_image, os.path.join(samples_dir, image_name))
 
 
 if __name__ == '__main__':
-    parser = CycleGANOptions(training=False)
+    parser = CycleGANOptions(False)
     opt = parser.parse()
     tester = CycleGANTest(opt)
     tester.test()

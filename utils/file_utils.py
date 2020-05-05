@@ -1,6 +1,8 @@
 import os
 import sys
 import cv2
+import numpy as np
+from PIL import Image
 
 
 def load_paths(dir):
@@ -12,7 +14,7 @@ def load_paths(dir):
     image_paths = []
 
     # traverse directory to obtain only paths to images
-    for dir_name, _, paths in sorted(os.walk(os.path.expand_user(dir))):
+    for dir_name, _, paths in sorted(os.walk(os.path.expanduser(dir))):
         for path in paths:
             if any(path.endswith(extensions) for extensions in IMG_EXTENSIONS):
                 image_paths.append(os.path.expanduser(dir_name + '/' + path))

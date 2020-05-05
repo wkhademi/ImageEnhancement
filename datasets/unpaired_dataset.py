@@ -1,4 +1,5 @@
 import tensorflow as tf
+from utils import file_utils
 from datasets.base_dataset import BaseDataset
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
@@ -17,7 +18,7 @@ class UnpairedDataset(BaseDataset):
         self.pathsA = file_utils.load_paths(self.dirA)
         self.pathsB = file_utils.load_paths(self.dirB)
 
-    def generate(self, cacheA=True, cacheB=True, shuffler_buffer_size=1000):
+    def generate(self, cacheA=True, cacheB=True, shuffle_buffer_size=1000):
         datasetA = tf.data.Dataset.from_tensor_slices(self.pathsA)
         datasetA = datasetA.map(self._preprocess, num_parallel_calls=AUTOTUNE)
 

@@ -26,7 +26,7 @@ class CycleGANModel(BaseModel):
             self.realB = self.dataB_iter.get_next()
         else:
             self.dataset = SingleDataset(opt, training)
-            self.datasetA = dataset.generate()
+            self.datasetA = self.dataset.generate()
             self.dataA_iter = self.datasetA.make_initializable_iterator()
             self.realA = self.dataA_iter.get_next()
 
@@ -44,22 +44,22 @@ class CycleGANModel(BaseModel):
         self.G = Generator(channels=self.opt.channels, netG=self.opt.netG, ngf=self.opt.ngf,
                            norm_type=self.opt.layer_norm_type, init_type=self.opt.weight_init_type,
                            init_gain=self.opt.weight_init_gain, dropout=self.opt.dropout,
-                           training=self.training, self.name='G')
+                           training=self.training, name='G')
 
         if self.training:
             # add ops for other generator (B->A) and discriminators to graph
             self.F = Generator(channels=self.opt.channels, netG=self.opt.netG, ngf=self.opt.ngf,
                                norm_type=self.opt.layer_norm_type, init_type=self.opt.weight_init_type,
                                init_gain=self.opt.weight_init_gain, dropout=self.opt.dropout,
-                               training=self.training, self.name='F')
+                               training=self.training, name='F')
             self.D_A = Discriminator(channels=self.opt.channels, netD=self.opt.netD, n_layers=self.opt.n_layers,
                                      ndf=self.opt.ndf, norm_type=self.opt.layer_norm_type,
                                      init_type=self.opt.weight_init_type, init_gain=self.opt.weight_init_gain,
-                                     training=self.is_training, gan_mode=self.opt.gan_mode, name='D_A')
+                                     training=self.training, gan_mode=self.opt.gan_mode, name='D_A')
             self.D_B = Discriminator(channels=self.opt.channels, netD=self.opt.netD, n_layers=self.opt.n_layers,
                                      ndf=self.opt.ndf, norm_type=self.opt.layer_norm_type,
                                      init_type=self.opt.weight_init_type, init_gain=self.opt.weight_init_gain,
-                                     training=self.is_training, gan_mode=self.opt.gan_mode, name='D_B')
+                                     training=self.training, gan_mode=self.opt.gan_mode, name='D_B')
 
             # generate fake images
             fakeA = self.F(self.realB)
@@ -74,7 +74,7 @@ class CycleGANModel(BaseModel):
             identB = self.F(self.realA)
 
             # add loss ops to graph
-            Gen_loss, D_A_loss, D_B_loss = self.__loss(fakeA, fakeB, reconstructedA
+            Gen_loss, D_A_loss, D_B_loss = self.__loss(fakeA, fakeB, reconstructedA,
                                                        reconstructedB, identA, identB)
 
             # add optimizer ops to graph
@@ -170,7 +170,7 @@ class CycleGANModel(BaseModel):
                 and a linearly decaying rate that goes to zero over the next 100k steps
             """
             global_step = tf.Variable(0, trainable=False, name='global_step')
-            starter_learning_rate = self.opt.learning_rate
+            starter_learning_rate = self.opt.lr
             end_learning_rate = 0.0
             start_decay_step = self.opt.niter
             decay_steps = self.opt.niter_decay
