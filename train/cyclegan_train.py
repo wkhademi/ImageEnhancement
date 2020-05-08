@@ -42,6 +42,8 @@ class CycleGANTrain(BaseTrain):
             cyclegan = CycleGANModel(self.opt, training=True)
             fakeA, fakeB, optimizers, Gen_loss, D_A_loss, D_B_loss = cyclegan.build()
             saver = tf.train.Saver(max_to_keep=2)
+            summary = tf.summary.merge_all()
+            writer = tf.summary.FileWriter(checkpoint, graph)
 
         with tf.Session(graph=graph) as sess:
             if self.opt.load_model is not None: # restore graph and variables
@@ -63,10 +65,14 @@ class CycleGANTrain(BaseTrain):
                         fakeA_img, fakeB_img = sess.run([fakeA, fakeB])
 
                         # calculate losses for the generators and discriminators and minimize them
-                        _, Gen_loss_val, D_B_loss_val, D_A_loss_val = sess.run([optimizers, Gen_loss,
-                                                                               D_B_loss, D_A_loss],
-                                                                               feed_dict={cyclegan.fakeA: fakeA_pool.query(fakeA_img),
-                                                                                          cyclegan.fakeB: fakeB_pool.query(fakeB_img)})
+                        _, Gen_loss_val, D_B_loss_val, \
+                        D_A_loss_val, sum = sess.run([optimizers, Gen_loss,
+                                                      D_B_loss, D_A_loss, summary],
+                                                      feed_dict={cyclegan.fakeA: fakeA_pool.query(fakeA_img),
+                                                                 cyclegan.fakeB: fakeB_pool.query(fakeB_img)})
+
+                        writer.add_summary(sum, step)
+                        writer.flush()
 
                         # display the losses of the Generators and Discriminators
                         if step % self.opt.display_frequency == 0:
@@ -81,7 +87,7 @@ class CycleGANTrain(BaseTrain):
                             print("Model saved as {}".format(save_path))
 
                         step += 1
-                    except tf.errors.OutOfRangeError:  # reinitializer iterators every full pass through dataset 
+                    except tf.errors.OutOfRangeError:  # reinitializer iterators every full pass through dataset
                         sess.run([cyclegan.dataA_iter.initializer, cyclegan.dataB_iter.initializer])
             except KeyboardInterrupt: # save training before exiting
                 print("Saving models training progress to the `checkpoints` directory...")

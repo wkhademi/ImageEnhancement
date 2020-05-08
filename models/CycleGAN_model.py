@@ -1,5 +1,6 @@
 import tensorflow as tf
 from models.base_model import BaseModel
+from utils.im_utils import batch_convert_2_int
 from datasets.single_dataset import SingleDataset
 from datasets.unpaired_dataset import UnpairedDataset
 from models.generators.cyclegan_generators import Generator
@@ -72,6 +73,13 @@ class CycleGANModel(BaseModel):
             # generate identity mapping images
             identA = self.G(self.realB)
             identB = self.F(self.realA)
+
+            tf.summary.image('A/original', batch_convert_2_int(self.realA))
+            tf.summary.image('B/original', batch_convert_2_int(self.realB))
+            tf.summary.image('A/generated', batch_convert_2_int(fakeA))
+            tf.summary.image('B/generated', batch_convert_2_int(fakeB))
+            tf.summary.image('A/reconstructed', batch_convert_2_int(reconstructedA))
+            tf.summary.image('B/reconstructed', batch_convert_2_int(reconstructedB))
 
             # add loss ops to graph
             Gen_loss, D_A_loss, D_B_loss = self.__loss(fakeA, fakeB, reconstructedA,

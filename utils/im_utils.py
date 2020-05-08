@@ -1,6 +1,7 @@
 import sys
 import random
 import numpy as np
+import tensorflow as tf
 from PIL import Image
 
 
@@ -37,6 +38,15 @@ def convert_2_grayscale(img):
 
 def convert_2_rgb(img):
     return img.convert('RGB')
+
+
+def convert_2_tfint(img):
+    img = (img + 1.) / 2.
+    return tf.image.convert_image_dtype(img, dtype=tf.uint8)
+
+
+def batch_convert_2_int(imgs):
+    return tf.map_fn(convert_2_tfint, imgs, dtype=tf.uint8)
 
 
 def make_power_2(img, base, method=Image.BICUBIC):
