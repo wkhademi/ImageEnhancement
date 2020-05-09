@@ -56,7 +56,7 @@ class UnpairedDataset(BaseDataset):
                               method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
         img = tf.image.random_crop(img, size=[self.opt.crop_size, self.opt.crop_size, self.opt.channels])
         img = tf.image.random_flip_left_right(img)
-        img = tf.image.convert_image_dtype(img, dtype=tf.float32)
+        img = tf.cast(img, dtype=tf.float32)
         img = (img / 127.5) - 1.
 
         return img

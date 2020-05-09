@@ -26,11 +26,11 @@ class CycleGANTrain(BaseTrain):
             checkpoint_name = datetime.now().strftime("%d%m%Y-%H%M")
             checkpoint = 'checkpoints/{}'.format(checkpoint_name)
 
-        try:
-            os.makedirs(checkpoint)
-        except os.error:
-            print("Failed to make new checkpoint directory.")
-            sys.exit(1)
+            try:
+                os.makedirs(checkpoint)
+            except os.error:
+                print("Failed to make new checkpoint directory.")
+                sys.exit(1)
 
         # create image pools for holding previously generated images
         fakeA_pool = ImagePool(self.opt.pool_size)

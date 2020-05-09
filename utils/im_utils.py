@@ -41,8 +41,8 @@ def convert_2_rgb(img):
 
 
 def convert_2_tfint(img):
-    img = (img + 1.) / 2.
-    return tf.image.convert_image_dtype(img, dtype=tf.uint8)
+    img = (img + 1.) * 127.5
+    return tf.cast(img, dtype=tf.uint8)
 
 
 def batch_convert_2_int(imgs):
