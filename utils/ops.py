@@ -2,7 +2,7 @@ import tensorflow as tf
 
 
 def conv(input, in_channels, out_channels, filter_size, stride, padding_type='SAME',
-         weight_init_type='normal', weight_init_gain=1.0, use_bias=True,
+         weight_init_type='normal', weight_init_gain=1.0, use_bias=False,
          bias_const=0.0, norm_type='instance', activation_type='ReLU', slope=0.2,
          is_training=True, scope=None, reuse=False):
     """
@@ -30,7 +30,8 @@ def conv(input, in_channels, out_channels, filter_size, stride, padding_type='SA
             layer = tf.nn.bias_add(layer, biases)
 
         # instance, batch, or no normalization
-        layer = __normalization(layer, is_training, norm_type=norm_type)
+        layer = __normalization(layer, init_gain=weight_init_gain, 
+                                is_training=is_training, norm_type=norm_type)
 
         # relu, leaky relu, or no activation
         layer = __activation_fn(layer, slope=slope, activation_type=activation_type)
@@ -38,8 +39,32 @@ def conv(input, in_channels, out_channels, filter_size, stride, padding_type='SA
     return layer
 
 
+def upsample(input, rescale_factor, in_channels, out_channels, filter_size, stride,
+             padding_type='SAME', weight_init_type='normal', weight_init_gain=1.0,
+             use_bias=False, bias_const=0.0, norm_type='instance', activation_type='ReLU',
+             slope=0.2, is_training=True, scope=None, reuse=False):
+    """
+    Upsample-Convolution layer.
+    """
+    with tf.variable_scope(scope, reuse=reuse):
+        out_shape = rescale_factor * input.get_shape().as_list()[1]
+
+        # upsample images by rescale_factor
+        upsampled_inputs = tf.image.resize_images(input, [out_shape, out_shape],
+                                                  method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+
+        # convolution
+        layer = conv(upsampled_inputs, in_channels, out_channels, filter_size, stride,
+                     padding_type=padding_type, weight_init_type=weight_init_type,
+                     weight_init_gain=weight_init_gain, use_bias=use_bias, bias_const=bias_const,
+                     norm_type=norm_type, activation_type=activation_type, slope=slope,
+                     is_training=is_training, scope='upsample_conv', reuse=reuse)
+
+        return layer
+
+
 def transpose_conv(input, in_channels, out_channels, filter_size=3, stride=2,
-                   weight_init_type='normal', weight_init_gain=1.0, use_bias=True,
+                   weight_init_type='normal', weight_init_gain=1.0, use_bias=False,
                    bias_const=0.0, norm_type='instance', activation_type='ReLU',
                    is_training=True, scope=None, reuse=False):
     """
@@ -63,7 +88,8 @@ def transpose_conv(input, in_channels, out_channels, filter_size=3, stride=2,
             layer = tf.nn.bias_add(layer, biases)
 
         # instance, batch, or no normalization
-        layer = __normalization(layer, is_training=is_training, norm_type=norm_type)
+        layer = __normalization(layer, init_gain=weight_init_gain, 
+                                is_training=is_training, norm_type=norm_type)
 
         # relu, leaky relu, or no activation
         layer = __activation_fn(layer, activation_type=activation_type)
@@ -71,14 +97,14 @@ def transpose_conv(input, in_channels, out_channels, filter_size=3, stride=2,
     return layer
 
 
-def __normalization(input, is_training=True, norm_type='instance'):
+def __normalization(input, init_gain=1.0, is_training=True, norm_type='instance'):
     """
     Normalization to be applied to layer.
     """
     if norm_type == 'batch':
         norm = __batch_normalization(input, is_training=is_training)
     elif norm_type == 'instance':
-        norm = __instance_normalization(input)
+        norm = __instance_normalization(input, init_gain=init_gain)
     else:
         norm = input
 
@@ -130,13 +156,19 @@ def __batch_normalization(input, is_training, decay=0.999, eps=1e-3):
     return tf.cond(is_training, batch_statistics, population_statistics)
 
 
-def __instance_normalization(input, eps=1e-9):
+def __instance_normalization(input, init_gain=0.02, eps=1e-9):
     """
     Compute instance normalization on the input.
     """
-    mean, var = tf.nn.moments(input, axes=[1,2], keep_dims=True)
+    with tf.variable_scope('instance_norm'):
+        channels = input.get_shape().as_list()[3]
+        scale = tf.get_variable('weights', shape=[channels], dtype=tf.float32,
+                                initializer=tf.initializers.truncated_normal(stddev=init_gain))
+        offset = __biases_init(channels)
+        mean, var = tf.nn.moments(input, axes=[1,2], keep_dims=True)
+        norm = scale * ((input - mean) / tf.sqrt(var + eps)) + offset
 
-    return (input - mean) / tf.sqrt(var + eps)
+    return norm 
 
 
 def __fixed_padding(filter_size):

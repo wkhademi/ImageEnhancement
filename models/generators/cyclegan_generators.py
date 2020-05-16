@@ -101,16 +101,24 @@ class Generator:
         u128 = ops.transpose_conv(r256, in_channels=4*ngf, out_channels=2*ngf, filter_size=3,
                                   stride=2, weight_init_type=init_type, weight_init_gain=init_gain,
                                   norm_type=norm_type, is_training=is_training, scope='u128', reuse=self.reuse)
+        #u128 = ops.upsample(r256, rescale_factor=2, in_channels=4*ngf, out_channels=2*ngf, filter_size=3,
+        #                    stride=1, padding_type='REFLECT', weight_init_type=init_type, 
+        #                    weight_init_gain=init_gain, norm_type=norm_type, is_training=is_training,
+        #                    scope='u128', reuse=self.reuse)
 
         # 3x3 fractional strided convolution-instance norm-relu layer with 64 filters and stride 1/2
         u64 = ops.transpose_conv(u128, in_channels=2*ngf, out_channels=ngf, filter_size=3,
                                  stride=2, weight_init_type=init_type, weight_init_gain=init_gain,
                                  norm_type=norm_type, is_training=is_training, scope='u64', reuse=self.reuse)
+        #u64 = ops.upsample(u128, rescale_factor=2, in_channels=2*ngf, out_channels=ngf, filter_size=3,
+        #                   stride=1, padding_type='REFLECT', weight_init_type=init_type, 
+        #                   weight_init_gain=init_gain, norm_type=norm_type, is_training=is_training,
+        #                   scope='u64', reuse=self.reuse)
 
         # 7x7 convolution-instance norm-relu layer with 3 filters and stride 1
         c7s1_3 = ops.conv(u64, in_channels=ngf, out_channels=channels, filter_size=7, stride=1,
                           padding_type='REFLECT', weight_init_type=init_type, weight_init_gain=init_gain,
-                          use_bias=False, norm_type=None, activation_type='tanh', is_training=is_training,
+                          use_bias=False, norm_type=None, activation_type=None, is_training=is_training,
                           scope='c7s1-3', reuse=self.reuse)
 
-        return c7s1_3
+        return tf.math.tanh(c7s1_3+input, name='gen_out')
