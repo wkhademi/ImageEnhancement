@@ -13,7 +13,7 @@ def conv(input, in_channels, out_channels, filter_size, stride, padding_type='SA
         weights = __weights_init(filter_size, in_channels, out_channels,
                                  init_type=weight_init_type, init_gain=weight_init_gain)
 
-        if padding_type == 'REFLECT': # add reflection padding to input
+        if padding_type == 'REFLECT':  # add reflection padding to input
             padding = __fixed_padding(filter_size)
             padded_input = tf.pad(input, padding, padding_type)
             padding_type = 'VALID'
@@ -30,7 +30,7 @@ def conv(input, in_channels, out_channels, filter_size, stride, padding_type='SA
             layer = tf.nn.bias_add(layer, biases)
 
         # instance, batch, or no normalization
-        layer = __normalization(layer, init_gain=weight_init_gain, 
+        layer = __normalization(layer, init_gain=weight_init_gain,
                                 is_training=is_training, norm_type=norm_type)
 
         # relu, leaky relu, or no activation
@@ -88,13 +88,23 @@ def transpose_conv(input, in_channels, out_channels, filter_size=3, stride=2,
             layer = tf.nn.bias_add(layer, biases)
 
         # instance, batch, or no normalization
-        layer = __normalization(layer, init_gain=weight_init_gain, 
+        layer = __normalization(layer, init_gain=weight_init_gain,
                                 is_training=is_training, norm_type=norm_type)
 
         # relu, leaky relu, or no activation
         layer = __activation_fn(layer, activation_type=activation_type)
 
     return layer
+
+
+def global_average_pooling(input):
+    """
+    Compute mean across the height and width dimensions for each channel of
+    every image.
+    """
+    pool = tf.reduce_mean(input, axis=[1, 2])
+
+    return pool
 
 
 def __normalization(input, init_gain=1.0, is_training=True, norm_type='instance'):
@@ -118,7 +128,7 @@ def __activation_fn(input, slope=0.2, activation_type='ReLU'):
     if activation_type == 'ReLU':
         activation = tf.nn.relu(input, name='relu')
     elif activation_type == 'LeakyReLU':
-        activation= tf.nn.leaky_relu(input, alpha=slope, name='leakyrelu')
+        activation = tf.nn.leaky_relu(input, alpha=slope, name='leakyrelu')
     elif activation_type == 'tanh':
         activation = tf.nn.tanh(input, name='tanh')
     elif activation_type == 'sigmoid':
@@ -140,7 +150,7 @@ def __batch_normalization(input, is_training, decay=0.999, eps=1e-3):
     population_mean = tf.Variable(tf.zeros(shape))
     population_var = tf.Variable(tf.ones(shape))
 
-    batch_mean, batch_var = tf.nn.moments(input, axes=[0,1,2])
+    batch_mean, batch_var = tf.nn.moments(input, axes=[0, 1, 2])
     train_mean = tf.assign(population_mean, decay*population_mean + (1-decay)*batch_mean)
     train_var = tf.assign(population_var, decay*population_var + (1-decay)*batch_var)
 
@@ -165,10 +175,10 @@ def __instance_normalization(input, init_gain=0.02, eps=1e-9):
         scale = tf.get_variable('weights', shape=[channels], dtype=tf.float32,
                                 initializer=tf.initializers.truncated_normal(stddev=init_gain))
         offset = __biases_init(channels)
-        mean, var = tf.nn.moments(input, axes=[1,2], keep_dims=True)
+        mean, var = tf.nn.moments(input, axes=[1, 2], keep_dims=True)
         norm = scale * ((input - mean) / tf.sqrt(var + eps)) + offset
 
-    return norm 
+    return norm
 
 
 def __fixed_padding(filter_size):
@@ -177,7 +187,7 @@ def __fixed_padding(filter_size):
     """
     pad_total = filter_size - 1
     pad = pad_total // 2
-    padding = [[0,0], [pad, pad], [pad, pad], [0, 0]]
+    padding = [[0, 0], [pad, pad], [pad, pad], [0, 0]]
 
     return padding
 
