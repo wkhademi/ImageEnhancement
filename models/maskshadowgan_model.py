@@ -19,29 +19,32 @@ class MaskShadowGANModel(BaseModel):
     def __init__(self, opt, training):
         BaseModel.__init__(self, opt, training)
 
-        # create dataset loaders
-        if training:
-            self.dataset = UnpairedDataset(opt, training)
-            self.datasetA, self.datasetB = self.dataset.generate(cacheA='./dataA.tfcache', cacheB='./dataB.tfcache')
-            self.dataA_iter = self.datasetA.make_initializable_iterator()
-            self.dataB_iter = self.datasetB.make_initializable_iterator()
-            self.realA = self.dataA_iter.get_next()
-            self.realB = self.dataB_iter.get_next()
-        else:
-            self.dataset = SingleDataset(opt, training)
-            self.datasetA = self.dataset.generate()
-            self.dataA_iter = self.datasetA.make_initializable_iterator()
-            self.realA = self.dataA_iter.get_next()
+        # create placeholders for images and shadow masks
+        self.realA = tf.placeholder(tf.float32, shape=[self.opt.batch_size, self.opt.crop_size, self.opt.crop_size, self.opt.channels])
+        self.realB = tf.placeholder(tf.float32, shape=[self.opt.batch_size, self.opt.crop_size, self.opt.crop_size, self.opt.channels])
+        self.fakeA = tf.placeholder(tf.float32, shape=[self.opt.batch_size, self.opt.crop_size, self.opt.crop_size, self.opt.channels])
+        self.fakeB = tf.placeholder(tf.float32, shape=[self.opt.batch_size, self.opt.crop_size, self.opt.crop_size, self.opt.channels])
+        self.rand_mask = tf.placeholder(tf.float32, shape=[self.opt.batch_size, self.opt.crop_size, self.opt.crop_size, 1])
+        self.last_mask = tf.placeholder(tf.float32, shape=[self.opt.batch_size, self.opt.crop_size, self.opt.crop_size, 1])
+        self.mask_non_shadow = tf.constant(-1.0, shape=[self.opt.batch_size, self.opt.crop_size, self.opt.crop_size, 1])
 
-        # create placeholders for fake images
-        self.fakeA = tf.placeholder(tf.float32,
-            shape=[self.opt.batch_size, self.opt.crop_size, self.opt.crop_size, self.opt.channels])
-        self.fakeB = tf.placeholder(tf.float32,
-            shape=[self.opt.batch_size, self.opt.crop_size, self.opt.crop_size, self.opt.channels])
+    def generate_dataset(self):
+        """
+        Add ops for dataset loaders to graph
+        """
+        if self.training:
+            dataset = UnpairedDataset(self.opt, self.training)
+            datasetA, datasetB = dataset.generate(cacheA='./dataA.tfcache', cacheB='./dataB.tfcache')
+            dataA_iter = datasetA.make_initializable_iterator()
+            dataB_iter = datasetB.make_initializable_iterator()
 
-        # create placeholder for shadow masks
-        self.masks = tf.placeholder(tf.float32,
-            shape=[self.opt.batch_size, self.opt.crop_size, self.opt.crop_size, 1])
+            return dataA_iter, dataB_iter, dataA_iter.get_next(), dataB_iter.get_next()
+        else:  # only need shadow dataset for testing
+            dataset = SingleDataset(self.opt, self.training)
+            datasetA = dataset.generate()
+            dataA_iter = datasetA.make_initializable_iterator()
+
+            return dataA_iter, dataA_iter.get_next()
 
     def build(self):
         """
@@ -65,16 +68,16 @@ class MaskShadowGANModel(BaseModel):
                                      init_gain=self.opt.weight_init_gain, training=self.training, name='D_B')
 
             # generate fake images
-            fakeA = self.F(self.realB)
             fakeB = self.G(self.realA)
+            fakeA = self.F(self.realB, self.rand_mask)
 
             # generate reconstructed images
-            reconstructedA = self.F(fakeB)
+            reconstructedA = self.F(fakeB, self.last_mask)
             reconstructedB = self.G(fakeA)
 
             # generate identity mapping images
             identA = self.G(self.realB)
-            identB = self.F(self.realA)
+            identB = self.F(self.realA, self.mask_non_shadow)
 
             tf.summary.image('A/original', batch_convert_2_int(self.realA))
             tf.summary.image('B/original', batch_convert_2_int(self.realB))
@@ -112,37 +115,26 @@ class MaskShadowGANModel(BaseModel):
 
         return Gen_loss, D_A_loss, D_B_loss
 
-    def __D_loss(self, D, real, fake, eps=1e-12):
+    def __D_loss(self, D, real, fake):
         """
         Compute the discriminator loss.
 
-        If LSGAN is used: (MSE Loss)
+        (MSE Loss):
             L_disc = 0.5 * [Expectation of (D(B) - 1)^2 + Expectation of (D(G(A)))^2]
-        Otherwise: (NLL Loss)
-            L_disc = -0.5 * [Expectation of log(D(B)) + Expectation of log(1 - D(G(A)))]
         """
-        if self.opt.gan_mode == 'lsgan':
-            loss = 0.5 * (tf.reduce_mean(tf.squared_difference(D(real), 1.0)) + \
-                          tf.reduce_mean(tf.square(D(fake))))
-        elif self.opt.gan_mode == 'vanilla':
-            loss = -0.5 * (tf.reduce_mean(tf.log(D(real) + eps)) + \
-                           tf.reduce_mean(tf.log(1 - D(fake) + eps)))
+        loss = 0.5 * (tf.reduce_mean(tf.squared_difference(D(real), 1.0)) + \
+                      tf.reduce_mean(tf.square(D(fake))))
 
         return loss
 
-    def __G_loss(self, D, fake, eps=1e-12):
+    def __G_loss(self, D, fake):
         """
         Compute the generator loss.
 
-        If LSGAN is used: (MSE Loss)
+        (MSE Loss):
             L_gen = Expectation of (D(G(A)) - 1)^2
-        Otherwise: (NLL Loss)
-            L_gen = Expectation of -log(D(G(A)))
         """
-        if self.opt.gan_mode == 'lsgan':
-            loss = tf.reduce_mean(tf.squared_difference(D(fake), 1.0))
-        elif self.opt.gan_mode == 'vanilla':
-            loss = -1 * tf.reduce_mean(tf.log(D(fake) + eps))
+        loss = tf.reduce_mean(tf.squared_difference(D(fake), 1.0))
 
         return loss
 

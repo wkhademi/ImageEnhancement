@@ -46,7 +46,7 @@ class CycleGANTrain(BaseTrain):
             writer = tf.summary.FileWriter(checkpoint, graph)
 
         with tf.Session(graph=graph) as sess:
-            if self.opt.load_model is not None: # restore graph and variables
+            if self.opt.load_model is not None:  # restore graph and variables
                 saver.restore(sess, tf.train.latest_checkpoint(checkpoint))
                 ckpt = tf.train.get_checkpoint_state(checkpoint)
                 step = int(os.path.basename(ckpt.model_checkpoint_path).split('-')[1])

@@ -41,10 +41,10 @@ class Generator:
 
         with tf.variable_scope(self.name):
             channels = self.channels+1 if mask else self.channels
-            input = tf.concat([input, mask], axis=-1) if mask else input
+            concat_input = tf.concat([input, mask], axis=-1) if mask else input
 
             # 7x7 convolution-instance norm-relu layer with 64 filters and stride 1
-            c7s1_64 = ops.conv(input, in_channels=channels, out_channels=self.ngf, filter_size=7, stride=1,
+            c7s1_64 = ops.conv(concat_input, in_channels=channels, out_channels=self.ngf, filter_size=7, stride=1,
                                padding_type='REFLECT', weight_init_type=self.init_type, weight_init_gain=self.init_gain,
                                norm_type=self.norm_type, is_training=self.is_training, scope='c7s1-64', reuse=self.reuse)
 
@@ -81,11 +81,7 @@ class Generator:
                               padding_type='REFLECT', weight_init_type=self.init_type, weight_init_gain=self.init_gain,
                               norm_type=None, activation_type=None, is_training=self.is_training, scope='c7s1-3', reuse=self.reuse)
 
-            if mask:
-                concat_output = tf.concat([c7s1_3, mask], axis=-1)
-                output = tf.math.tanh(concat_output+input, name='gen_out')
-            else:
-                output = tf.math.tanh(c7s1_3+input, name='gen_out')
+            output = tf.math.tanh(c7s1_3+input, name='gen_out')
 
         # set reuse to True for next call
         self.reuse = True
