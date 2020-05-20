@@ -40,8 +40,8 @@ class Generator:
                 return layer
 
         with tf.variable_scope(self.name):
-            channels = self.channels+1 if mask else self.channels
-            concat_input = tf.concat([input, mask], axis=-1) if mask else input
+            channels = self.channels+1 if mask is not None else self.channels
+            concat_input = tf.concat([input, mask], axis=-1) if mask is not None else input
 
             # 7x7 convolution-instance norm-relu layer with 64 filters and stride 1
             c7s1_64 = ops.conv(concat_input, in_channels=channels, out_channels=self.ngf, filter_size=7, stride=1,
@@ -79,7 +79,8 @@ class Generator:
             # 7x7 convolution-instance norm-relu layer with 3 filters and stride 1
             c7s1_3 = ops.conv(u64, in_channels=self.ngf, out_channels=self.channels, filter_size=7, stride=1,
                               padding_type='REFLECT', weight_init_type=self.init_type, weight_init_gain=self.init_gain,
-                              norm_type=None, activation_type=None, is_training=self.is_training, scope='c7s1-3', reuse=self.reuse)
+                              use_bias=False, norm_type=None, activation_type=None, is_training=self.is_training, 
+                              scope='c7s1-3', reuse=self.reuse)
 
             output = tf.math.tanh(c7s1_3+input, name='gen_out')
 

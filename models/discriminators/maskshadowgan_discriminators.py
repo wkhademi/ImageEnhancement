@@ -21,7 +21,7 @@ class Discriminator():
         with tf.variable_scope(self.name):
             output = ops.conv(input, in_channels=self.channels, out_channels=self.ndf, filter_size=4,
                               stride=2, weight_init_type=self.init_type, weight_init_gain=self.init_gain,
-                              norm_type=None, activation_type='LeakyReLU', is_training=self.is_training,
+                              use_bias=False, norm_type=None, activation_type='LeakyReLU', is_training=self.is_training,
                               scope='layer0', reuse=self.reuse)
 
             output = ops.conv(output, in_channels=self.ndf, out_channels=2*self.ndf, filter_size=4,
@@ -41,7 +41,7 @@ class Discriminator():
 
             output = ops.conv(output, in_channels=8*self.ndf, out_channels=1, filter_size=4,
                               stride=1, weight_init_type=self.init_type, weight_init_gain=self.init_gain,
-                              norm_type=None, activation_type=None, is_training=self.is_training,
+                              use_bias=False, norm_type=None, activation_type=None, is_training=self.is_training,
                               scope='out', reuse=self.reuse)
 
             output = ops.global_average_pooling(output)

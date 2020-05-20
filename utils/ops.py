@@ -2,7 +2,7 @@ import tensorflow as tf
 
 
 def conv(input, in_channels, out_channels, filter_size, stride, padding_type='SAME',
-         weight_init_type='normal', weight_init_gain=1.0, use_bias=False,
+         weight_init_type='normal', weight_init_gain=1.0, use_bias=True,
          bias_const=0.0, norm_type='instance', activation_type='ReLU', slope=0.2,
          is_training=True, scope=None, reuse=False):
     """
@@ -64,7 +64,7 @@ def upsample(input, rescale_factor, in_channels, out_channels, filter_size, stri
 
 
 def transpose_conv(input, in_channels, out_channels, filter_size=3, stride=2,
-                   weight_init_type='normal', weight_init_gain=1.0, use_bias=False,
+                   weight_init_type='normal', weight_init_gain=1.0, use_bias=True,
                    bias_const=0.0, norm_type='instance', activation_type='ReLU',
                    is_training=True, scope=None, reuse=False):
     """
@@ -173,7 +173,7 @@ def __instance_normalization(input, init_gain=0.02, eps=1e-9):
     with tf.variable_scope('instance_norm'):
         channels = input.get_shape().as_list()[3]
         scale = tf.get_variable('weights', shape=[channels], dtype=tf.float32,
-                                initializer=tf.initializers.truncated_normal(stddev=init_gain))
+                                initializer=tf.initializers.truncated_normal(mean=1.0, stddev=init_gain))
         offset = __biases_init(channels)
         mean, var = tf.nn.moments(input, axes=[1, 2], keep_dims=True)
         norm = scale * ((input - mean) / tf.sqrt(var + eps)) + offset
