@@ -37,9 +37,13 @@ class CycleGANTest(BaseTest):
             samples_dir = os.path.expanduser(self.opt.sample_directory)
 
             for idx in range(self.opt.num_samples):
-                generated_image = sess.run(fakeImg)
-                image_name = 'sample' + str(idx) + '.jpg'
-                save_image(generated_image, os.path.join(samples_dir, image_name))
+                real_image, generated_image = sess.run([cyclegan.realA, fakeImg])
+                real_image_name = 'sampleA' + str(idx) + '.jpg'
+                generated_image_name = 'generatedB' + str(idx) + '.jpg'
+
+                # save real and generated image to samples directory
+                save_image(real_image, os.path.join(samples_dir, real_image_name))
+                save_image(generated_image, os.path.join(samples_dir, generated_image_name))
 
 
 if __name__ == '__main__':
