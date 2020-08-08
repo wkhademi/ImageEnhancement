@@ -26,7 +26,7 @@ def save_image(image, image_path):
     """
     Save an image to disk.
     """
-    image = ((image[0] + 1) * 127.5).astype(np.uint8) # convert from [-1, 1] to [0, 255]
+    image = ((image[0] + 1) * 127.5).astype(np.uint8)  # convert from [-1, 1] to [0, 255]
     img = Image.fromarray(image)
     img.save(os.path.expanduser(image_path))
 

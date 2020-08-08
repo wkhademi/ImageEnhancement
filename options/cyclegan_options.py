@@ -32,10 +32,6 @@ class CycleGANOptions(BaseOptions):
                                 help='the size of image buffer that stores previously generated images')
         self.parser.add_argument('--gan_mode', type=str, default='lsgan',
                                 help='Use least square GAN or vanilla GAN. Default is LSGAN.')
-        self.parser.add_argument('--beta1', type=float, default=0.5, help='Moment term for adam. Default is 0.5')
-        self.parser.add_argument('--niter', type=int, default=100000, help='# of steps at starting learning rate')
-        self.parser.add_argument('--niter_decay', type=int, default=100000,
-                                help='# of steps to linearly decay learning rate to zero')
 
     def parse(self):
         return self.parser.parse_args()
