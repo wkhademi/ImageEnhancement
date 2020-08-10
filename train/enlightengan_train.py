@@ -34,7 +34,7 @@ class EnlightenGANTrain(BaseTrain):
                 print("Failed to make new checkpoint directory.")
                 sys.exit(1)
 
-        # build the CycleGAN graph
+        # build the EnlightenGAN graph
         graph = tf.Graph()
         with graph.as_default():
             with tf.Session(graph=graph) as sess:
@@ -42,18 +42,28 @@ class EnlightenGANTrain(BaseTrain):
 
                 enlightengan = EnlightenGANModel(self.opt, training=True)
                 enlightengan.build()
-                vgg_weights = enlightengan.vgg16.get_weights()
+
+                # feature extractor weights
+                if self.opt.vgg:
+                    vgg_weights = enlightengan.vgg16.get_weights()
+
+                if self.opt.patch_vgg:
+                    vgg_patch_weights = englightengan.vgg16_patch.get_weights()
 
                 if self.opt.load_model is not None:  # restore graph and variables
                     saver.restore(sess, tf.train.latest_checkpoint(checkpoint))
                     ckpt = tf.train.get_checkpoint_state(checkpoint)
                     step = int(os.path.basename(ckpt.model_checkpoint_path).split('-')[1])
                 else:
-                    sess.run(tf.global_variables_initializer())
-                    enlightengan.vgg16.set_weights(vgg_weights)
                     step = 0
+                    sess.run(tf.global_variables_initializer())
 
-                print(enlightengan.vgg16.get_layer(self.opt.vgg_choose).get_weights())
+                    # hack for loading trained weights into TensorFlow graph
+                    if self.opt.vgg:
+                        enlightengan.vgg16.set_weights(vgg_weights)
+
+                    if self.opt.patch_vgg:
+                        enlightengan.vgg16_patch.set_weights(vgg_patch_weights)
 
 if __name__ == '__main__':
     parser = EnlightenGANOptions(True)

@@ -13,7 +13,8 @@ Implementations of the following models are provided:
 - CycleGAN by Zhu et al.: [Paper](https://arxiv.org/pdf/1703.10593.pdf) | [Code](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix)
 - Mask-ShadowGAN by Hu et al.: [Paper](https://arxiv.org/pdf/1903.10683.pdf) | [Code](https://github.com/xw-hu/Mask-ShadowGAN)
 - EnligthenGAN by Jiang et al. (in progress): [Paper](https://arxiv.org/pdf/1906.06972.pdf) | [Code](https://github.com/TAMU-VITA/EnlightenGAN)
-- DeShadowNet by Liangqiong et al. (in progress): [Paper](http://openaccess.thecvf.com/content_cvpr_2017/papers/Qu_DeshadowNet_A_Multi-Context_CVPR_2017_paper.pdf) | [Code](https://github.com/Liangqiong/DeShadowNet) 
+- DeShadowNet by Liangqiong et al. (in progress): [Paper](http://openaccess.thecvf.com/content_cvpr_2017/papers/Qu_DeshadowNet_A_Multi-Context_CVPR_2017_paper.pdf) | [Code](https://github.com/Liangqiong/DeShadowNet)
+- SRGAN by Dong et al. (in progress): [Paper](https://arxiv.org/pdf/1609.04802.pdf) | [Code](https://github.com/tensorlayer/srgan)
 
 ## Datasets
 - Download a CycleGAN dataset using:
@@ -48,6 +49,9 @@ To be added...
 #### DeShadowNet
 To be added...
 
+#### SRGAN
+To be added...
+
 To continue training from a saved checkpoint, add the following argument to the end of the command line arguments passed into the training script you are running:
 ```
 --load_model /checkpoint_dir (e.g. /20022019-0801)
@@ -70,4 +74,7 @@ python test/maskshadowgan_test.py --dir /path/to/shadow_data --batch_size 1 --la
 To be added...
 
 #### DeShadowNet
+To be added...
+
+#### SRGAN
 To be added...
