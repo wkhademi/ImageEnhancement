@@ -5,7 +5,7 @@ from utils import ops
 class Generator:
     def __init__(self, channels=3, netG='resnet_9blocks', ngf=64, norm_type='instance',
                  init_type='normal', init_gain=1.0, dropout=False, training=True,
-                 name=None):
+                 self_attention=True, times_residual=True, skip=0.0, name=None):
         self.channels = channels
         self.netG = netG
         self.ngf = ngf
@@ -14,10 +14,13 @@ class Generator:
         self.init_gain = init_gain
         self.dropout = dropout
         self.is_training = training
+        self.self_attention = self_attention
+        self.times_residual = times_residual
+        self.skip = skip
         self.name = name
         self.reuse = False
 
-    def __call__(self, input):
+    def __call__(self, input, gray=None):
         with tf.variable_scope(self.name):
             if self.netG == 'resnet_9blocks':
                 output = self.resnet_generator(input, self.channels, self.ngf, self.norm_type,
@@ -33,6 +36,10 @@ class Generator:
             elif self.netG == 'unet_128':
                 print("Haven't implemented yet...")
                 sys.exit(1)
+            elif self.netG == 'sid_unet_resize':
+                output = self.unet_resize_conv(input, gray, self.channels, self.ngf, self.norm_type,
+                                               self.init_type, self.init_gain, self.dropout, self.is_training,
+                                               self.self_attention, self.times_residual, self.skip)
             else:
                 print("Invalid generator architecture.")
                 sys.exit(1)
@@ -114,3 +121,175 @@ class Generator:
                           scope='c7s1-3', reuse=self.reuse)
 
         return tf.math.tanh(c7s1_3+input, name='gen_out')
+
+    def unet_resize_conv(self, input, gray, channels=3, ngf=64, norm_type='instance',
+                         init_type='normal', init_gain=1.0, dropout=False,
+                         is_training=True, self_attention=True, times_residual=True, skip=0.0):
+        """
+        Unet-based generator that contains Resnet blocks in between
+        some downsampling and upsampling layers.
+        """
+        input, pad_left, pad_right, pad_top, pad_bottom = ops.pad_tensor(input)
+        gray, pad_left, pad_right, pad_top, pad_bottom = ops.pad_tensor(gray)
+
+        if self_attention:
+            gray_2 = ops.max_pooling(gray)
+            gray_3 = ops.max_pooling(gray_2)
+            gray_4 = ops.max_pooling(gray_3)
+            gray_5 = ops.max_pooling(gray_4)
+
+        in_channels = channels+1 if self_attention else channels
+        x = tf.concat([input, gray], -1) if self_attention else input
+
+        x = ops.conv(x, in_channels=in_channels, out_channels=ngf, filter_size=3, stride=1,
+                     padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                     norm_type=norm_type, activation_type='LeakyReLU', is_training=is_training,
+                     scope='conv1', reuse=self.reuse)
+
+        conv_block1 = ops.conv(x, in_channels=ngf, out_channels=ngf, filter_size=3, stride=1,
+                               padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                               norm_type=norm_type, activation_type='LeakyReLU', is_training=is_training,
+                               scope='conv2', reuse=self.reuse)
+
+        x = ops.max_pooling(conv_block1)
+
+        x = ops.conv(x, in_channels=ngf, out_channels=2*ngf, filter_size=3, stride=1,
+                     padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                     norm_type=norm_type, activation_type='LeakyReLU', is_training=is_training,
+                     scope='conv3', reuse=self.reuse)
+
+        conv_block2 = ops.conv(x, in_channels=2*ngf, out_channels=2*ngf, filter_size=3, stride=1,
+                               padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                               norm_type=norm_type, activation_type='LeakyReLU', is_training=is_training,
+                               scope='conv4', reuse=self.reuse)
+
+        x = ops.max_pooling(conv_block2)
+
+        x = ops.conv(x, in_channels=2*ngf, out_channels=4*ngf, filter_size=3, stride=1,
+                     padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                     norm_type=norm_type, activation_type='LeakyReLU', is_training=is_training,
+                     scope='conv5', reuse=self.reuse)
+
+        conv_block3 = ops.conv(x, in_channels=4*ngf, out_channels=4*ngf, filter_size=3, stride=1,
+                               padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                               norm_type=norm_type, activation_type='LeakyReLU', is_training=is_training,
+                               scope='conv6', reuse=self.reuse)
+
+        x = ops.max_pooling(conv_block3)
+
+        x = ops.conv(x, in_channels=4*ngf, out_channels=8*ngf, filter_size=3, stride=1,
+                     padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                     norm_type=norm_type, activation_type='LeakyReLU', is_training=is_training,
+                     scope='conv7', reuse=self.reuse)
+
+        conv_block4 = ops.conv(x, in_channels=8*ngf, out_channels=8*ngf, filter_size=3, stride=1,
+                               padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                               norm_type=norm_type, activation_type='LeakyReLU', is_training=is_training,
+                               scope='conv8', reuse=self.reuse)
+
+        x = ops.max_pooling(conv_block4)
+
+        x = ops.conv(x, in_channels=8*ngf, out_channels=16*ngf, filter_size=3, stride=1,
+                     padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                     norm_type=norm_type, activation_type='LeakyReLU', is_training=is_training,
+                     scope='conv9', reuse=self.reuse)
+
+        x = x * gray_5 if self_attention else x
+
+        conv_block5 = ops.conv(x, in_channels=16*ngf, out_channels=16*ngf, filter_size=3, stride=1,
+                               padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                               norm_type=norm_type, activation_type='LeakyReLU', is_training=is_training,
+                               scope='conv10', reuse=self.reuse)
+
+        upsample_block1 = ops.upsample(conv_block5, rescale_factor=2, in_channels=16*ngf, out_channels=8*ngf,
+                                       filter_size=3, stride=1, padding_type='SAME', weight_init_type=init_type,
+                                       weight_init_gain=init_gain, norm_type=None, activation_type=None,
+                                       is_training=is_training, scope='deconv1', reuse=self.reuse)
+
+        x = conv_block4 * gray_4 if self_attention else conv_block4
+
+        x = tf.concat([upsample_block1, x], -1)
+
+        x = ops.conv(x, in_channels=16*ngf, out_channels=8*ngf, filter_size=3, stride=1,
+                     padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                     norm_type=norm_type, activation_type='LeakyReLU', is_training=is_training,
+                     scope='conv11', reuse=self.reuse)
+
+        conv_block6 = ops.conv(x, in_channels=8*ngf, out_channels=8*ngf, filter_size=3, stride=1,
+                               padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                               norm_type=norm_type, activation_type='LeakyReLU', is_training=is_training,
+                               scope='conv12', reuse=self.reuse)
+
+        upsample_block2 = ops.upsample(conv_block6, rescale_factor=2, in_channels=8*ngf, out_channels=4*ngf,
+                                       filter_size=3, stride=1, padding_type='SAME', weight_init_type=init_type,
+                                       weight_init_gain=init_gain, norm_type=None, activation_type=None,
+                                       is_training=is_training, scope='deconv2', reuse=self.reuse)
+
+        x = conv_block3 * gray_3 if self_attention else conv_block3
+
+        x = tf.concat([upsample_block2, x], -1)
+
+        x = ops.conv(x, in_channels=8*ngf, out_channels=4*ngf, filter_size=3, stride=1,
+                     padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                     norm_type=norm_type, activation_type='LeakyReLU', is_training=is_training,
+                     scope='conv13', reuse=self.reuse)
+
+        conv_block7 = ops.conv(x, in_channels=4*ngf, out_channels=4*ngf, filter_size=3, stride=1,
+                               padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                               norm_type=norm_type, activation_type='LeakyReLU', is_training=is_training,
+                               scope='conv14', reuse=self.reuse)
+
+        upsample_block3 = ops.upsample(conv_block7, rescale_factor=2, in_channels=4*ngf, out_channels=2*ngf,
+                                       filter_size=3, stride=1, padding_type='SAME', weight_init_type=init_type,
+                                       weight_init_gain=init_gain, norm_type=None, activation_type=None,
+                                       is_training=is_training, scope='deconv3', reuse=self.reuse)
+
+        x = conv_block2 * gray_2 if self_attention else conv_block2
+
+        x = tf.concat([upsample_block3, x], -1)
+
+        x = ops.conv(x, in_channels=4*ngf, out_channels=2*ngf, filter_size=3, stride=1,
+                     padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                     norm_type=norm_type, activation_type='LeakyReLU', is_training=is_training,
+                     scope='conv15', reuse=self.reuse)
+
+        conv_block8 = ops.conv(x, in_channels=2*ngf, out_channels=2*ngf, filter_size=3, stride=1,
+                               padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                               norm_type=norm_type, activation_type='LeakyReLU', is_training=is_training,
+                               scope='conv16', reuse=self.reuse)
+
+        upsample_block4 = ops.upsample(conv_block8, rescale_factor=2, in_channels=2*ngf, out_channels=ngf,
+                                       filter_size=3, stride=1, padding_type='SAME', weight_init_type=init_type,
+                                       weight_init_gain=init_gain, norm_type=None, activation_type=None,
+                                       is_training=is_training, scope='deconv4', reuse=self.reuse)
+
+        x = conv_block1 * gray if self_attention else conv_block1
+
+        x = tf.concat([upsample_block4, x], -1)
+
+        x = ops.conv(x, in_channels=2*ngf, out_channels=ngf, filter_size=3, stride=1,
+                     padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                     norm_type=norm_type, activation_type='LeakyReLU', is_training=is_training,
+                     scope='conv17', reuse=self.reuse)
+
+        conv_block9 = ops.conv(x, in_channels=ngf, out_channels=ngf, filter_size=3, stride=1,
+                               padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                               norm_type=norm_type, activation_type='LeakyReLU', is_training=is_training,
+                               scope='conv18', reuse=self.reuse)
+
+        latent = ops.conv(conv_block9, in_channels=ngf, out_channels=3, filter_size=1, stride=1,
+                          padding_type='SAME', weight_init_type=init_type, weight_init_gain=init_gain,
+                          norm_type=None, activation_type=None, is_training=is_training,
+                          scope='conv19', reuse=self.reuse)
+
+        latent = latent * gray if times_residual else latent
+        output = latent + input*skip if skip else latent
+
+        output = ops.pad_tensor_back(output, pad_left, pad_right, pad_top, pad_bottom)
+        latent = ops.pad_tensor_back(latent, pad_left, pad_right, pad_top, pad_bottom)
+        gray = ops.pad_tensor_back(gray, pad_left, pad_right, pad_top, pad_bottom)
+
+        if skip:
+            return output, latent
+        else:
+            return output

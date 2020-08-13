@@ -29,12 +29,12 @@ def conv(input, in_channels, out_channels, filter_size, stride, padding_type='SA
             biases = __biases_init(out_channels, constant=bias_const)
             layer = tf.nn.bias_add(layer, biases)
 
+        # relu, leaky relu, or no activation
+        layer = __activation_fn(layer, slope=slope, activation_type=activation_type)
+
         # instance, batch, or no normalization
         layer = __normalization(layer, init_gain=weight_init_gain,
                                 is_training=is_training, norm_type=norm_type)
-
-        # relu, leaky relu, or no activation
-        layer = __activation_fn(layer, slope=slope, activation_type=activation_type)
 
     return layer
 
@@ -51,7 +51,7 @@ def upsample(input, rescale_factor, in_channels, out_channels, filter_size, stri
 
         # upsample images by rescale_factor
         upsampled_inputs = tf.image.resize_images(input, [out_shape, out_shape],
-                                                  method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+                                                  method=tf.image.ResizeMethod.BILINEAR)
 
         # convolution
         layer = conv(upsampled_inputs, in_channels, out_channels, filter_size, stride,
@@ -97,6 +97,24 @@ def transpose_conv(input, in_channels, out_channels, filter_size=3, stride=2,
     return layer
 
 
+def max_pooling(input, filter_size=2, stride=2):
+    """
+    Perform max pooling on input.
+    """
+    pool = tf.nn.max_pool2d(input, filter_size, stride)
+
+    return pool
+
+
+def average_pooling(input, filter_size=2, stride=2):
+    """
+    Perform average pooling on input.
+    """
+    pool = tf.nn.avg_pool2d(input, filter_size, stride)
+
+    return pool
+
+
 def global_average_pooling(input):
     """
     Compute mean across the height and width dimensions for each channel of
@@ -105,6 +123,63 @@ def global_average_pooling(input):
     pool = tf.reduce_mean(input, axis=[1, 2])
 
     return pool
+
+
+def pad_tensor(input, divide=16):
+    """
+    Pad input tensor.
+    """
+    shape = input.get_shape().as_list()
+    height = shape[0]
+    width = shape[1]
+
+    if width % divide != 0 or height % divide != 0:
+        width_res = width % divide
+        height_res = height % divide
+
+        if width_res != 0:
+            width_div = divide - width_res
+            pad_left = int(width_div / 2)
+            pad_right = int(width_div - pad_left)
+        else:
+            pad_left = 0
+            pad_right = 0
+
+        if height_res != 0:
+            height_div = divide - height_res
+            pad_top = int(height_div  / 2)
+            pad_bottom = int(height_div  - pad_top)
+        else:
+            pad_top = 0
+            pad_bottom = 0
+
+        input = tf.pad(input, tf.constant(0, [[pad_top, pad_bottom], [pad_left, pad_right]]))
+    else:
+        pad_left = 0
+        pad_right = 0
+        pad_top = 0
+        pad_bottom = 0
+
+    shape = input.get_shape().as_list()
+    height = shape[0]
+    width = shape[1]
+    assert width % divide == 0, 'width cant divided by stride'
+    assert height % divide == 0, 'height cant divided by stride'
+
+    return input, pad_left, pad_right, pad_top, pad_bottom
+
+
+def pad_tensor_back(input, pad_left, pad_right, pad_top, pad_bottom):
+    """
+    Remove padding from tensor.
+    """
+    shape = input.get_shape().as_list()
+    height = shape[0]
+    width = shape[1]
+
+    input = tf.image.crop_to_bounding_box(input, pad_top, pad_left, height-pad_bottom, width-pad_right)
+
+    return input
 
 
 def __normalization(input, init_gain=1.0, is_training=True, norm_type='instance'):
