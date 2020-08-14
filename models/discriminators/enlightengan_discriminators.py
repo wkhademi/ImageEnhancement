@@ -29,6 +29,10 @@ class Discriminator():
                 output = self.n_layer_discriminator(input, self.channels, self.n_layers, self.ndf,
                                                     self.norm_type, self.init_type, self.init_gain,
                                                     self.is_training, self.sigmoid)
+            elif self.netD == 'no_norm_n_layers':
+                output = self.n_layer_discriminator(input, self.channels, self.n_layers, self.ndf,
+                                                    None, self.init_type, self.init_gain,
+                                                    self.is_training, self.sigmoid)
             elif self.netD == 'pixel': # 1x1 PatchGAN Discriminator
                 output = self.pixel_discriminator(input, self.channels, self.ndf, self.norm_type,
                                                   self.init_type, self.init_gain, self.is_training, self.sigmoid)

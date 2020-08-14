@@ -47,9 +47,6 @@ class EnlightenGANTrain(BaseTrain):
                 if self.opt.vgg:
                     vgg_weights = enlightengan.vgg16.get_weights()
 
-                if self.opt.patch_vgg:
-                    vgg_patch_weights = englightengan.vgg16_patch.get_weights()
-
                 if self.opt.load_model is not None:  # restore graph and variables
                     saver.restore(sess, tf.train.latest_checkpoint(checkpoint))
                     ckpt = tf.train.get_checkpoint_state(checkpoint)
@@ -61,9 +58,6 @@ class EnlightenGANTrain(BaseTrain):
                     # hack for loading trained weights into TensorFlow graph
                     if self.opt.vgg:
                         enlightengan.vgg16.set_weights(vgg_weights)
-
-                    if self.opt.patch_vgg:
-                        enlightengan.vgg16_patch.set_weights(vgg_patch_weights)
 
 if __name__ == '__main__':
     parser = EnlightenGANOptions(True)

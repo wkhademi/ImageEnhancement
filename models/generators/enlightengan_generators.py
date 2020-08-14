@@ -283,13 +283,13 @@ class Generator:
                           scope='conv19', reuse=self.reuse)
 
         latent = latent * gray if times_residual else latent
-        output = latent + input*skip if skip else latent
+        output = latent + input*skip if skip > 0. else latent
 
         output = ops.pad_tensor_back(output, pad_left, pad_right, pad_top, pad_bottom)
         latent = ops.pad_tensor_back(latent, pad_left, pad_right, pad_top, pad_bottom)
         gray = ops.pad_tensor_back(gray, pad_left, pad_right, pad_top, pad_bottom)
 
-        if skip:
+        if skip > 0.:
             return output, latent
         else:
             return output

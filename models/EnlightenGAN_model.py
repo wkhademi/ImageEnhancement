@@ -34,30 +34,42 @@ class EnlightenGANModel(BaseModel):
 
     def build(self):
         # add ops for Generator (low light -> normal light) to graph
-        self.G = Generator()
+        self.G = Generator(channels=self.opt.channels, netG=self.opt.netG, ngf=self.opt.ngf,
+                           norm_type=self.opt.layer_norm_type, init_type=self.opt.weight_init_type,
+                           init_gain=self.opt.weight_init_gain, dropout=self.opt.dropout,
+                           self_attention=self.opt.self_attention, times_residual=self.opt.times_residual,
+                           skip=self.opt.skip, training=self.training, name='G')
 
         if self.training:
+            # add ops for discriminator to graph
+            self.D = Discriminator(channels=self.opt.channels, netD=self.opt.netD, n_layers=self.opt.n_layers,
+                                   ndf=self.opt.ndf, norm_type=self.opt.layer_norm_type,
+                                   init_type=self.opt.weight_init_type, init_gain=self.opt.weight_init_gain,
+                                   training=self.training, gan_mode=self.opt.gan_mode, name='D')
+
+            # add ops for patch discriminator to graph if necessary
+            if self.opt.patchD:
+                self.D_P = Discriminator(channels=self.opt.channels, netD=self.opt.netD, n_layers=self.opt.n_layers_patch,
+                                         ndf=self.opt.ndf, norm_type=self.opt.layer_norm_type,
+                                         init_type=self.opt.weight_init_type, init_gain=self.opt.weight_init_gain,
+                                         training=self.training, gan_mode=self.opt.gan_mode, name='D_P')
+
             # build feature extractor if necessary
             if self.opt.vgg:
                 self.vgg16 = tf.keras.applications.VGG16(include_top=False,
-                                                         input_shape=(self.opt.crop_size, self.opt.crop_size, 3))
+                                                         input_shape=(None, None, 3))
                 self.vgg16.trainable = False
                 self.vgg16_features = self.vgg16.get_layer(self.opt.vgg_choose).output
 
-            # build patch feature extractor if necessary
-            if self.opt.patch_vgg:
-                self.vgg16_patch = tf.keras.applications.VGG16(include_top=False,
-                                                               input_shape=(self.opt.patch_size, self.opt.patch_size, 3))
-                self.vgg16_patch.trainable = False
-                self.vgg16_patch_features = self.vgg16_patch.get_layer(self.opt.vgg_choose).output
+            
 
             # add loss ops to graph
-            _ = self.__loss()
+            Gen_loss, D_loss, D_P_loss = self.__loss()
 
             # add optimizer ops to graph
-            _ = self.__optimizers()
+            optimizers = self.__optimizers(Gen_loss, D_loss, D_P_loss)
 
-            return None
+            return enhanced, optimizers, Gen_loss, D_loss, D_P_loss
         else:
             enhanced = self.G(self.low)
             return enhanced
@@ -65,7 +77,7 @@ class EnlightenGANModel(BaseModel):
     def __loss():
         pass
 
-    def __perceptual_loss(low, enhanced, low_patch, enhanced_patch, low_patches, enhanced_patches):
+    def __perceptual_loss(low, enhanced, low_patch=None, enhanced_patch=None, low_patches=None, enhanced_patches=None):
         """
         Compute the self feature preserving loss on the low-light and enhanced image.
         """
@@ -74,12 +86,12 @@ class EnlightenGANModel(BaseModel):
         features_normal = self._vgg16_features(enhanced)
 
         if self.opt.patch_vgg:
-            features_low_patch = self.__vgg16_patch_features(low_patch)
-            features_normal_patch = self.__vgg16_patch_features(enhanced_patch)
+            features_low_patch = self.__vgg16_features(low_patch)
+            features_normal_patch = self.__vgg16_features(enhanced_patch)
 
         if self.opt.patchD_3:
-            features_low_patches = self.__vgg16_patch_features(low_patches)
-            features_normal_patches = self.__vgg16_patch_features(enhanced_patches)
+            features_low_patches = self.__vgg16_features(low_patches)
+            features_normal_patches = self.__vgg16_features(enhanced_patches)
 
         if self.opt.no_vgg_instance:
             loss = tf.reduce_mean(tf.squared_difference(features_low, features_normal))
@@ -107,7 +119,7 @@ class EnlightenGANModel(BaseModel):
 
         return loss
 
-    def __optimizers(self, Gen_loss, D_A_loss, D_B_loss):
+    def __optimizers(self, Gen_loss, D_loss, D_P_loss):
         """
         Modified optimizer taken from vanhuyz TensorFlow implementation of CycleGAN
         https://github.com/vanhuyz/CycleGAN-TensorFlow/blob/master/model.py
@@ -134,11 +146,11 @@ class EnlightenGANModel(BaseModel):
 
             return learning_step
 
-        Gen_optimizer = make_optimizer(Gen_loss, self.G.variables + self.F.variables, name='Adam_Gen')
-        D_A_optimizer = make_optimizer(D_A_loss, self.D_A.variables, name='Adam_D_A')
-        D_B_optimizer = make_optimizer(D_B_loss, self.D_B.variables, name='Adam_D_B')
+        Gen_optimizer = make_optimizer(Gen_loss, self.G.variables, name='Adam_Gen')
+        D_optimizer = make_optimizer(D_loss, self.D.variables, name='Adam_D')
+        D_P_optimizer = make_optimizer(D_P_loss, self.D_P.variables, name='Adam_D_P')
 
-        with tf.control_dependencies([Gen_optimizer, D_A_optimizer, D_B_optimizer]):
+        with tf.control_dependencies([Gen_optimizer, D_optimizer, D_P_optimizer]):
             return tf.no_op(name='optimizers')
 
     def __vgg16_features(image):
@@ -147,14 +159,5 @@ class EnlightenGANModel(BaseModel):
         """
         vgg16_in = tf.keras.applications.vgg16.preprocess_input((image+1)*127.5)
         vgg16_features = self.vgg16_features(vgg16_in)
-
-        return vgg16_features
-
-    def __vgg16_patch_features(image):
-        """
-        Extract features from patches using VGG16 model.
-        """
-        vgg16_in = tf.keras.applications.vgg16.preprocess_input((image+1)*127.5)
-        vgg16_features = self.vgg16_patch_features(vgg16_in)
 
         return vgg16_features
