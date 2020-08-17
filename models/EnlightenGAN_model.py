@@ -32,6 +32,9 @@ class EnlightenGANModel(BaseModel):
             self.dataA_iter = self.datasetA.make_initializable_iterator()
             self.low = self.dataA_iter.get_next()
 
+        self.enhanced = tf.placeholder(tf.float32,
+            shape=[self.opt.batch_size, self.opt.crop_size, self.opt.crop_size, self.opt.channels])
+
     def build(self):
         # add ops for Generator (low light -> normal light) to graph
         self.G = Generator(channels=self.opt.channels, netG=self.opt.netG, ngf=self.opt.ngf,
@@ -61,7 +64,10 @@ class EnlightenGANModel(BaseModel):
                 self.vgg16.trainable = False
                 self.vgg16_features = self.vgg16.get_layer(self.opt.vgg_choose).output
 
-            
+            if self.opt.skip > 0:
+                enhanced, latent_enhanced = self.G(self.low)
+            else:
+                enhanced = self.G(self.low)
 
             # add loss ops to graph
             Gen_loss, D_loss, D_P_loss = self.__loss()
@@ -69,13 +75,56 @@ class EnlightenGANModel(BaseModel):
             # add optimizer ops to graph
             optimizers = self.__optimizers(Gen_loss, D_loss, D_P_loss)
 
+            if D_P_loss is None:  # create dummy value to avoid error
+                D_P_loss = tf.constant(0)
+
             return enhanced, optimizers, Gen_loss, D_loss, D_P_loss
         else:
-            enhanced = self.G(self.low)
+            enhanced = self.G(self.low)[0] if self.opt.skip > 0 else self.G(self.low)
             return enhanced
 
     def __loss():
         pass
+
+    def __D_loss(self, D, normal, enhanced, use_ragan=False, eps=1e-12):
+        """
+        Compute the discriminator loss.
+
+        If LSGAN is used: (MSE Loss)
+            L_disc = 0.5 * [Expectation of (D(B) - 1)^2 + Expectation of (D(G(A)))^2]
+        Otherwise: (NLL Loss)
+            L_disc = -0.5 * [Expectation of log(D(B)) + Expectation of log(1 - D(G(A)))]
+        """
+        if self.opt.use_ragan and use_ragan:
+            loss = 0.5 * (tf.reduce_mean(tf.squared_difference(D(normal) - tf.reduce_mean(D(enhanced)), 1.0)) + \
+                          tf.reduce_mean(tf.square(D(enhanced) - tf.reduce_mean(D(normal)))))
+        elif self.opt.gan_mode == 'lsgan':
+            loss = 0.5 * (tf.reduce_mean(tf.squared_difference(D(normal), 1.0)) + \
+                          tf.reduce_mean(tf.square(D(enhanced))))
+        elif self.opt.gan_mode == 'vanilla':
+            loss = -0.5 * (tf.reduce_mean(tf.log(D(normal) + eps)) + \
+                           tf.reduce_mean(tf.log(1 - D(enhanced) + eps)))
+
+        return loss
+
+    def __G_loss(self, D, normal, enhanced, use_ragan=False, eps=1e-12):
+        """
+        Compute the generator loss.
+
+        If LSGAN is used: (MSE Loss)
+            L_gen = Expectation of (D(G(A)) - 1)^2
+        Otherwise: (NLL Loss)
+            L_gen = Expectation of -log(D(G(A)))
+        """
+        if self.opt.use_ragan and use_ragan:
+            loss = 0.5 * (tf.reduce_mean(tf.square(D(normal) - tf.reduce_mean(D(enhanced)))) + \
+                          tf.reduce_mean(tf.squared_difference(D(enhanced) - tf.reduce_mean(D(normal)), 1.0)))
+        elif self.opt.gan_mode == 'lsgan':
+            loss = tf.reduce_mean(tf.squared_difference(D(enhanced), 1.0))
+        elif self.opt.gan_mode == 'vanilla':
+            loss = -1 * tf.reduce_mean(tf.log(D(enhanced) + eps))
+
+        return loss
 
     def __perceptual_loss(low, enhanced, low_patch=None, enhanced_patch=None, low_patches=None, enhanced_patches=None):
         """
@@ -119,7 +168,7 @@ class EnlightenGANModel(BaseModel):
 
         return loss
 
-    def __optimizers(self, Gen_loss, D_loss, D_P_loss):
+    def __optimizers(self, Gen_loss, D_loss, D_P_loss=None):
         """
         Modified optimizer taken from vanhuyz TensorFlow implementation of CycleGAN
         https://github.com/vanhuyz/CycleGAN-TensorFlow/blob/master/model.py
@@ -148,9 +197,14 @@ class EnlightenGANModel(BaseModel):
 
         Gen_optimizer = make_optimizer(Gen_loss, self.G.variables, name='Adam_Gen')
         D_optimizer = make_optimizer(D_loss, self.D.variables, name='Adam_D')
-        D_P_optimizer = make_optimizer(D_P_loss, self.D_P.variables, name='Adam_D_P')
 
-        with tf.control_dependencies([Gen_optimizer, D_optimizer, D_P_optimizer]):
+        optimizers = [Gen_optimizer, D_optimizer]
+
+        if D_P_loss is not None:
+            D_P_optimizer = make_optimizer(D_P_loss, self.D_P.variables, name='Adam_D_P')
+            optimizers.append(D_P_optimizer)
+
+        with tf.control_dependencies(optimizers):
             return tf.no_op(name='optimizers')
 
     def __vgg16_features(image):

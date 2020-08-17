@@ -27,7 +27,7 @@ class BaseOptions(ABC):
         self.parser.add_argument('--norm_max', type=float, default=255., help='Max possible pixel value')
 
         # model arguments
-        self.parser.add_argument('--lr', type=float, default=1e-3, help='Initial learning rate')
+        self.parser.add_argument('--lr', type=float, default=1e-4, help='Initial learning rate')
         self.parser.add_argument('--dropout', action='store_true', help='Perform dropout if set')
         self.parser.add_argument('--layer_norm_type', type=str, default='batch',
                                 help='Type of normalization [batch | instance]')

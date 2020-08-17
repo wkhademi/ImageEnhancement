@@ -44,7 +44,10 @@ python train/maskshadowgan_train.py --dirA /path/to/shadow_data --dirB /path/to/
 ```
 
 #### EnlightenGAN
-To be added...
+To train run:
+```
+python train/enlightengan_train.py --dirA /path/to/low_light_data --dirB /path/to/normal_data --weight_init_gain 0.02 --scale_size 320 --crop_size 320 --patchD_3 5 --self_attention --times_residual --patchD --vgg --patch_vgg --use_ragan --hybrid_loss
+```
 
 #### DeShadowNet
 To be added...
@@ -71,7 +74,10 @@ python test/maskshadowgan_test.py --dir /path/to/shadow_data --batch_size 1 --la
 ```
 
 #### EnlightenGAN
-To be added...
+To test the EnlightenGAN model run:
+```
+python test/enlightengan_test.py --dir /path/to/low_light_data --batch_size 1 --scale_size 320 --crop_size 320 --load_model /checkpoint_dir --sample_directory /path/to/save/samples/to --self_attention --times_residual
+```
 
 #### DeShadowNet
 To be added...
