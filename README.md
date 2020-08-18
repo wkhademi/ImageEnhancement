@@ -12,7 +12,7 @@ Various models for handling underexposure, overexposure, super-resolution, shado
 Implementations of the following models are provided:
 - CycleGAN by Zhu et al.: [Paper](https://arxiv.org/pdf/1703.10593.pdf) | [Code](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix)
 - Mask-ShadowGAN by Hu et al.: [Paper](https://arxiv.org/pdf/1903.10683.pdf) | [Code](https://github.com/xw-hu/Mask-ShadowGAN)
-- EnligthenGAN by Jiang et al. (in progress): [Paper](https://arxiv.org/pdf/1906.06972.pdf) | [Code](https://github.com/TAMU-VITA/EnlightenGAN)
+- EnlightenGAN by Jiang et al.: [Paper](https://arxiv.org/pdf/1906.06972.pdf) | [Code](https://github.com/TAMU-VITA/EnlightenGAN)
 - DeShadowNet by Liangqiong et al. (in progress): [Paper](http://openaccess.thecvf.com/content_cvpr_2017/papers/Qu_DeshadowNet_A_Multi-Context_CVPR_2017_paper.pdf) | [Code](https://github.com/Liangqiong/DeShadowNet)
 - SRGAN by Dong et al. (in progress): [Paper](https://arxiv.org/pdf/1609.04802.pdf) | [Code](https://github.com/tensorlayer/srgan)
 
@@ -23,6 +23,7 @@ Implementations of the following models are provided:
    ```
 - Download the Unpaired Shadow Removal (USR) dataset for shadow removal from: [USR Dataset](https://drive.google.com/file/d/1PPAX0W4eyfn1cUrb2aBefnbrmhB1htoJ/view)
 - Download the ISTD dataset for shadow removal from: [ISTD Dataset](https://drive.google.com/file/d/1I0qw-65KBA6np8vIZzO6oeiOvcDBttAY/view)
+- Download the EnlightenGAN dataset for low-light image enhancement from: [Google Drive](https://drive.google.com/drive/folders/1fwqz8-RnTfxgIIkebFG2Ej3jQFsYECh0)
 
 ## Updating PYTHONPATH
 To ensure all modules in repo can be found you must update your **PYTHONPATH** environment variable:

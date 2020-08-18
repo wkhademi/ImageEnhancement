@@ -32,9 +32,6 @@ class EnlightenGANModel(BaseModel):
             self.dataA_iter = self.datasetA.make_initializable_iterator()
             self.low = self.dataA_iter.get_next()
 
-        self.enhanced = tf.placeholder(tf.float32,
-            shape=[self.opt.batch_size, self.opt.crop_size, self.opt.crop_size, self.opt.channels])
-
     def build(self):
         # add ops for Generator (low light -> normal light) to graph
         self.G = Generator(channels=self.opt.channels, netG=self.opt.netG, ngf=self.opt.ngf,
@@ -64,13 +61,53 @@ class EnlightenGANModel(BaseModel):
                 self.vgg16.trainable = False
                 self.vgg16_features = self.vgg16.get_layer(self.opt.vgg_choose).output
 
+            gray = 1. - tf.image.rgb_to_grayscale((self.low+1.)/2.)
+
             if self.opt.skip > 0:
-                enhanced, latent_enhanced = self.G(self.low)
+                enhanced, latent_enhanced = self.G(self.low, gray)
             else:
-                enhanced = self.G(self.low)
+                enhanced = self.G(self.low, gray)
+
+            if self.opt.patchD:
+                height = self.opt.crop_size
+                width = self.opt.crop_size
+                height_offset = tf.random.uniform(1, maxval=height-self.opt.patch_size-1, dtype=tf.int32)
+                width_offset = tf.random.uniform(1, maxval=width-self.opt.patch_size-1, dtype=tf.int32)
+
+                low_patch = ops.crop(self.low, height_offset, width_offset, self.opt.patch_size)
+                normal_patch = ops.crop(self.normal, height_offset, width_offset, self.opt.patch_size)
+                enhanced_patch = ops.crop(enhanced, height_offset, width_offset, self.opt.patch_size)
+            else:
+                low_patch = None
+                normal_patch = None
+                enhanced_patch = None
+
+            if self.opt.patchD_3 > 0:
+                height = self.opt.crop_size
+                width = self.opt.crop_size
+                height_offset = tf.random.uniform(self.opt.patchD_3, maxval=height-self.opt.patch_size-1, dtype=tf.int32)
+                width_offset = tf.random.uniform(self.opt.patchD_3, maxval=width-self.opt.patch_size-1, dtype=tf.int32)
+
+                height_offset = tf.tile(height_offset, [self.opt.batch_size])
+                width_offset = tf.tile(width_offset, [self.opt.batch_size])
+                low_patches = tf.repeat(self.low, repeats=self.opt.patchD_3, axis=0)
+                normal_patches = tf.repeat(self.normal, repeats=self.opt.patchD_3, axis=0)
+                enhanced_patches = tf.repeat(enhanced, repeats=self.opt.patchD_3, axis=0)
+
+                low_patches = tf.map_fn(lambda x: ops.crop(x[0], x[1], x[2], self.opt.patch_size),
+                                (low_patches, height_offset, width_offset), fn_output_signature=tf.float32)
+                normal_patches = tf.map_fn(lambda x: ops.crop(x[0], x[1], x[2], self.opt.patch_size),
+                                    (normal_patches, height_offset, width_offset), fn_output_signature=tf.float32)
+                enhanced_patches = tf.map_fn(lambda x: ops.crop(x[0], x[1], x[2], self.opt.patch_size),
+                                        (enhanced_patches, height_offset, width_offset), fn_output_signature=tf.float3)
+            else:
+                low_patches = None
+                normal_patches = None
+                enhanced_patches = None
 
             # add loss ops to graph
-            Gen_loss, D_loss, D_P_loss = self.__loss()
+            Gen_loss, D_loss, D_P_loss = self.__loss(self.low, self.normal, enhanced, low_patch, normal_patch,
+                                                     enhanced_patch, low_patches, normal_patches, enhanced_patches)
 
             # add optimizer ops to graph
             optimizers = self.__optimizers(Gen_loss, D_loss, D_P_loss)
@@ -83,7 +120,11 @@ class EnlightenGANModel(BaseModel):
             enhanced = self.G(self.low)[0] if self.opt.skip > 0 else self.G(self.low)
             return enhanced
 
-    def __loss():
+    def __loss(low, normal, enhanced, low_patch, normal_patch, enhanced_patch,
+               low_patches, normal_patches, enhanced_patches):
+        """
+        Compute losses for generator and discriminators.
+        """
         pass
 
     def __D_loss(self, D, normal, enhanced, use_ragan=False, eps=1e-12):

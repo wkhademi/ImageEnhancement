@@ -34,9 +34,6 @@ class EnlightenGANTrain(BaseTrain):
                 print("Failed to make new checkpoint directory.")
                 sys.exit(1)
 
-        # create image pool for holding previously generated images
-        enhanced_pool = ImagePool(self.opt.pool_size)
-
         # build the EnlightenGAN graph
         graph = tf.Graph()
         with graph.as_default():
@@ -78,8 +75,7 @@ class EnlightenGANTrain(BaseTrain):
                             # calculate losses for the generators and discriminators and minimize them
                             _, Gen_loss_val, D_loss_val, \
                             D_P_loss_val, sum = sess.run([optimizers, Gen_loss,
-                                                          D_loss, D_P_loss, summary],
-                                                          feed_dict={enlightengan.enhanced: enhanced_pool.query(enhanced_img)})
+                                                          D_loss, D_P_loss, summary])
 
                             writer.add_summary(sum, step)
                             writer.flush()

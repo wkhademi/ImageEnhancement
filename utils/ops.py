@@ -182,6 +182,16 @@ def pad_tensor_back(input, pad_left, pad_right, pad_top, pad_bottom):
     return input
 
 
+def crop(input, height, width, patch_size):
+    """
+    Crop a patch out of an image.
+    """
+    cropped_input = tf.image.crop_to_bounding_box(input, height, width,
+                                                  height+self.opt.patch_size, width+self.opt.patch_size)
+
+    return cropped_input
+
+
 def __normalization(input, init_gain=1.0, is_training=True, norm_type='instance'):
     """
     Normalization to be applied to layer.
