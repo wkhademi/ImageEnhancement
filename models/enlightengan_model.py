@@ -144,9 +144,9 @@ class EnlightenGANModel(BaseModel):
         D_loss = self.__D_loss(self.D, normal, enhanced, use_ragan=True)
 
         # compute local discriminator loss if necessary
-        D_P_loss = 0
+        D_P_loss = None
         if self.opt.patchD:
-            D_P_loss += self.__D_loss(self.D_P, normal_patch, enhanced_patch, use_ragan=use_ragan)
+            D_P_loss = self.__D_loss(self.D_P, normal_patch, enhanced_patch, use_ragan=use_ragan)
 
             if self.opt.patchD_3 > 0:
                 D_P_loss += self.__D_loss(self.D_P, normal_patches, enhanced_patches, use_ragan=use_ragan)
