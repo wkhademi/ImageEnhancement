@@ -125,7 +125,33 @@ class EnlightenGANModel(BaseModel):
         """
         Compute losses for generator and discriminators.
         """
-        pass
+        use_ragan = False if self.opt.hybrid_loss else True  # for hybrid losss
+
+        # compute generator loss
+        Gen_loss = self.__G_loss(self.D, normal, enhanced, use_ragan=True)
+
+        if self.opt.patchD:
+            Gen_loss += self.__G_loss(self.D_P, normal_patch, enhanced_patch, use_ragan=use_ragan)
+
+            if self.opt.patchD_3 > 0:
+                Gen_loss += self.__G_loss(self.D_P, normal_patches, enhanced_patches, use_ragan=use_ragan)
+
+        if self.opt.vgg:
+            Gen_loss += self.__perceptual_loss(low, enhanced, low_patch, enhanced_patch,
+                                               low_patches, enhanced_patches)
+
+        # compute global discriminator loss
+        D_loss = self.__D_loss(self.D, normal, enhanced, use_ragan=True)
+
+        # compute local discriminator loss if necessary
+        D_P_loss = 0
+        if self.opt.patchD:
+            D_P_loss += self.__D_loss(self.D_P, normal_patch, enhanced_patch, use_ragan=use_ragan)
+
+            if self.opt.patchD_3 > 0:
+                D_P_loss += self.__D_loss(self.D_P, normal_patches, enhanced_patches, use_ragan=use_ragan)
+
+        return Gen_loss, D_loss, D_P_loss
 
     def __D_loss(self, D, normal, enhanced, use_ragan=False, eps=1e-12):
         """
@@ -171,7 +197,6 @@ class EnlightenGANModel(BaseModel):
         """
         Compute the self feature preserving loss on the low-light and enhanced image.
         """
-        loss_feature_patch = 0
         features_low = self.__vgg16_features(low)
         features_normal = self._vgg16_features(enhanced)
 
@@ -179,7 +204,7 @@ class EnlightenGANModel(BaseModel):
             features_low_patch = self.__vgg16_features(low_patch)
             features_normal_patch = self.__vgg16_features(enhanced_patch)
 
-        if self.opt.patchD_3:
+        if self.opt.patchD_3 > 0:
             features_low_patches = self.__vgg16_features(low_patches)
             features_normal_patches = self.__vgg16_features(enhanced_patches)
 
@@ -187,25 +212,23 @@ class EnlightenGANModel(BaseModel):
             loss = tf.reduce_mean(tf.squared_difference(features_low, features_normal))
 
             if self.opt.patch_vgg:
-                loss_feature_patch += tf.reduce_mean(tf.squared_difference(features_low_patch,
-                                                                           features_normal_patch))
+                loss += tf.reduce_mean(tf.squared_difference(features_low_patch,
+                                                             features_normal_patch))
 
-            if self.opt.patchD_3:
-                loss_feature_patch += tf.reduce_mean(tf.squared_difference(features_low_patches,
-                                                                           features_normal_patches))
+            if self.opt.patchD_3 > 0:
+                loss += tf.reduce_mean(tf.squared_difference(features_low_patches,
+                                                             features_normal_patches))
         else:
             loss = tf.reduce_mean(tf.squared_difference(instance_norm(features_low),
                                                         instance_norm(features_normal)))
 
             if self.opt.patch_vgg:
-                loss_feature_patch += tf.reduce_mean(tf.squared_difference(instance_norm(features_low_patch),
-                                                                           instance_norm(features_normal_patch)))
+                loss += tf.reduce_mean(tf.squared_difference(instance_norm(features_low_patch),
+                                                             instance_norm(features_normal_patch)))
 
-            if self.opt.patchD_3:
-                loss_feature_patch += tf.reduce_mean(tf.squared_difference(instance_norm(features_low_patches),
-                                                                           instance_norm(features_normal_patches)))
-
-        loss += loss_feature_patch / (self.opt.patchD_3 + 1)
+            if self.opt.patchD_3 > 0:
+                loss_ += tf.reduce_mean(tf.squared_difference(instance_norm(features_low_patches),
+                                                              instance_norm(features_normal_patches)))
 
         return loss
 

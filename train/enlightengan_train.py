@@ -58,9 +58,9 @@ class EnlightenGANTrain(BaseTrain):
                     step = 0
                     sess.run(tf.global_variables_initializer())
 
-                    # hack for loading trained weights into TensorFlow graph
-                    if self.opt.vgg:
-                        enlightengan.vgg16.set_weights(vgg_weights)
+                # hack for loading trained weights into TensorFlow graph
+                if self.opt.vgg:
+                    enlightengan.vgg16.set_weights(vgg_weights)
 
                 max_steps = self.opt.niter + self.opt.niter_decay
 
