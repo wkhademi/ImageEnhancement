@@ -1,3 +1,4 @@
+import utils.ops as ops
 import tensorflow as tf
 from models.base_model import BaseModel
 from utils.im_utils import batch_convert_2_int
@@ -15,8 +16,8 @@ class EnlightenGANModel(BaseModel):
 
     Paper: https://arxiv.org/pdf/1906.06972.pdf
     """
-    def __init__(self, opt):
-        BaseModel.__init__(self, opt)
+    def __init__(self, opt, training):
+        BaseModel.__init__(self, opt, training)
 
         # create dataset loaders
         if training:
@@ -59,7 +60,6 @@ class EnlightenGANModel(BaseModel):
                 self.vgg16 = tf.keras.applications.VGG16(include_top=False,
                                                          input_shape=(None, None, 3))
                 self.vgg16.trainable = False
-                self.vgg16_features = self.vgg16.get_layer(self.opt.vgg_choose).output
 
             gray = 1. - tf.image.rgb_to_grayscale((self.low+1.)/2.)
 
@@ -71,12 +71,12 @@ class EnlightenGANModel(BaseModel):
             if self.opt.patchD:
                 height = self.opt.crop_size
                 width = self.opt.crop_size
-                height_offset = tf.random.uniform(1, maxval=height-self.opt.patch_size-1, dtype=tf.int32)
-                width_offset = tf.random.uniform(1, maxval=width-self.opt.patch_size-1, dtype=tf.int32)
+                height_offset = tf.random.uniform([1], maxval=height-self.opt.patch_size-1, dtype=tf.int32)
+                width_offset = tf.random.uniform([1], maxval=width-self.opt.patch_size-1, dtype=tf.int32)
 
-                low_patch = ops.crop(self.low, height_offset, width_offset, self.opt.patch_size)
-                normal_patch = ops.crop(self.normal, height_offset, width_offset, self.opt.patch_size)
-                enhanced_patch = ops.crop(enhanced, height_offset, width_offset, self.opt.patch_size)
+                low_patch = ops.crop(self.low, height_offset[0], width_offset[0], self.opt.patch_size)
+                normal_patch = ops.crop(self.normal, height_offset[0], width_offset[0], self.opt.patch_size)
+                enhanced_patch = ops.crop(enhanced, height_offset[0], width_offset[0], self.opt.patch_size)
             else:
                 low_patch = None
                 normal_patch = None
@@ -85,25 +85,31 @@ class EnlightenGANModel(BaseModel):
             if self.opt.patchD_3 > 0:
                 height = self.opt.crop_size
                 width = self.opt.crop_size
-                height_offset = tf.random.uniform(self.opt.patchD_3, maxval=height-self.opt.patch_size-1, dtype=tf.int32)
-                width_offset = tf.random.uniform(self.opt.patchD_3, maxval=width-self.opt.patch_size-1, dtype=tf.int32)
+                height_offset = tf.random.uniform([self.opt.patchD_3], maxval=height-self.opt.patch_size-1, dtype=tf.int32)
+                width_offset = tf.random.uniform([self.opt.patchD_3], maxval=width-self.opt.patch_size-1, dtype=tf.int32)
 
                 height_offset = tf.tile(height_offset, [self.opt.batch_size])
                 width_offset = tf.tile(width_offset, [self.opt.batch_size])
-                low_patches = tf.repeat(self.low, repeats=self.opt.patchD_3, axis=0)
-                normal_patches = tf.repeat(self.normal, repeats=self.opt.patchD_3, axis=0)
-                enhanced_patches = tf.repeat(enhanced, repeats=self.opt.patchD_3, axis=0)
 
+                low_patches = tf.keras.backend.repeat_elements(self.low, rep=self.opt.patchD_3, axis=0)
                 low_patches = tf.map_fn(lambda x: ops.crop(x[0], x[1], x[2], self.opt.patch_size),
-                                (low_patches, height_offset, width_offset), fn_output_signature=tf.float32)
+                                (low_patches, height_offset, width_offset), dtype=tf.float32)
+
+                normal_patches = tf.keras.backend.repeat_elements(self.normal, rep=self.opt.patchD_3, axis=0)
                 normal_patches = tf.map_fn(lambda x: ops.crop(x[0], x[1], x[2], self.opt.patch_size),
-                                    (normal_patches, height_offset, width_offset), fn_output_signature=tf.float32)
+                                    (normal_patches, height_offset, width_offset), dtype=tf.float32)
+
+                enhanced_patches = tf.keras.backend.repeat_elements(enhanced, rep=self.opt.patchD_3, axis=0)
                 enhanced_patches = tf.map_fn(lambda x: ops.crop(x[0], x[1], x[2], self.opt.patch_size),
-                                        (enhanced_patches, height_offset, width_offset), fn_output_signature=tf.float3)
+                                        (enhanced_patches, height_offset, width_offset), dtype=tf.float32)
             else:
                 low_patches = None
                 normal_patches = None
                 enhanced_patches = None
+
+            tf.summary.image('low', batch_convert_2_int(self.low))
+            tf.summary.image('normal', batch_convert_2_int(self.normal))
+            tf.summary.image('enhanced', batch_convert_2_int(enhanced))
 
             # add loss ops to graph
             Gen_loss, D_loss, D_P_loss = self.__loss(self.low, self.normal, enhanced, low_patch, normal_patch,
@@ -120,7 +126,7 @@ class EnlightenGANModel(BaseModel):
             enhanced = self.G(self.low)[0] if self.opt.skip > 0 else self.G(self.low)
             return enhanced
 
-    def __loss(low, normal, enhanced, low_patch, normal_patch, enhanced_patch,
+    def __loss(self, low, normal, enhanced, low_patch, normal_patch, enhanced_patch,
                low_patches, normal_patches, enhanced_patches):
         """
         Compute losses for generator and discriminators.
@@ -193,12 +199,13 @@ class EnlightenGANModel(BaseModel):
 
         return loss
 
-    def __perceptual_loss(low, enhanced, low_patch=None, enhanced_patch=None, low_patches=None, enhanced_patches=None):
+    def __perceptual_loss(self, low, enhanced, low_patch=None, enhanced_patch=None, 
+                          low_patches=None, enhanced_patches=None):
         """
         Compute the self feature preserving loss on the low-light and enhanced image.
         """
         features_low = self.__vgg16_features(low)
-        features_normal = self._vgg16_features(enhanced)
+        features_normal = self.__vgg16_features(enhanced)
 
         if self.opt.patch_vgg:
             features_low_patch = self.__vgg16_features(low_patch)
@@ -219,16 +226,16 @@ class EnlightenGANModel(BaseModel):
                 loss += tf.reduce_mean(tf.squared_difference(features_low_patches,
                                                              features_normal_patches))
         else:
-            loss = tf.reduce_mean(tf.squared_difference(instance_norm(features_low),
-                                                        instance_norm(features_normal)))
+            loss = tf.reduce_mean(tf.squared_difference(instance_norm(features_low, name='low_weights'),
+                                                        instance_norm(features_normal, name='normal_weights')))
 
             if self.opt.patch_vgg:
-                loss += tf.reduce_mean(tf.squared_difference(instance_norm(features_low_patch),
-                                                             instance_norm(features_normal_patch)))
+                loss += tf.reduce_mean(tf.squared_difference(instance_norm(features_low_patch, name='low_patch_weights'),
+                                                             instance_norm(features_normal_patch, name='normal_patch_weights')))
 
             if self.opt.patchD_3 > 0:
-                loss_ += tf.reduce_mean(tf.squared_difference(instance_norm(features_low_patches),
-                                                              instance_norm(features_normal_patches)))
+                loss += tf.reduce_mean(tf.squared_difference(instance_norm(features_low_patches, name='low_patches_weights'),
+                                                             instance_norm(features_normal_patches, name='normal_patches_weights')))
 
         return loss
 
@@ -271,11 +278,19 @@ class EnlightenGANModel(BaseModel):
         with tf.control_dependencies(optimizers):
             return tf.no_op(name='optimizers')
 
-    def __vgg16_features(image):
+    def __vgg16_features(self, image):
         """
         Extract features from image using VGG16 model.
         """
         vgg16_in = tf.keras.applications.vgg16.preprocess_input((image+1)*127.5)
-        vgg16_features = self.vgg16_features(vgg16_in)
+        x = vgg16_in
+
+        for i in range(len(self.vgg16.layers)):
+            x = self.vgg16.layers[i](x)
+
+            if self.vgg16.layers[i].name == self.opt.vgg_choose:
+                break
+
+        vgg16_features = x 
 
         return vgg16_features

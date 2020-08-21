@@ -97,11 +97,11 @@ def transpose_conv(input, in_channels, out_channels, filter_size=3, stride=2,
     return layer
 
 
-def max_pooling(input, filter_size=2, stride=2):
+def max_pooling(input, filter_size=2, stride=2, padding='SAME'):
     """
     Perform max pooling on input.
     """
-    pool = tf.nn.max_pool2d(input, filter_size, stride)
+    pool = tf.nn.max_pool2d(input, filter_size, stride, padding)
 
     return pool
 
@@ -130,8 +130,8 @@ def pad_tensor(input, divide=16):
     Pad input tensor.
     """
     shape = input.get_shape().as_list()
-    height = shape[0]
-    width = shape[1]
+    height = shape[1]
+    width = shape[2]
 
     if width % divide != 0 or height % divide != 0:
         width_res = width % divide
@@ -161,8 +161,8 @@ def pad_tensor(input, divide=16):
         pad_bottom = 0
 
     shape = input.get_shape().as_list()
-    height = shape[0]
-    width = shape[1]
+    height = shape[1]
+    width = shape[2]
     assert width % divide == 0, 'width cant divided by stride'
     assert height % divide == 0, 'height cant divided by stride'
 
@@ -174,10 +174,10 @@ def pad_tensor_back(input, pad_left, pad_right, pad_top, pad_bottom):
     Remove padding from tensor.
     """
     shape = input.get_shape().as_list()
-    height = shape[0]
-    width = shape[1]
+    height = shape[1]
+    width = shape[2]
 
-    input = tf.image.crop_to_bounding_box(input, pad_top, pad_left, height-pad_bottom, width-pad_right)
+    input = tf.image.crop_to_bounding_box(input, pad_top, pad_left, height-(pad_top+pad_bottom), width-(pad_left+pad_right))
 
     return input
 
@@ -186,8 +186,7 @@ def crop(input, height, width, patch_size):
     """
     Crop a patch out of an image.
     """
-    cropped_input = tf.image.crop_to_bounding_box(input, height, width,
-                                                  height+self.opt.patch_size, width+self.opt.patch_size)
+    cropped_input = tf.image.crop_to_bounding_box(input, height, width, patch_size, patch_size)
 
     return cropped_input
 
@@ -248,18 +247,18 @@ def __batch_normalization(input, is_training, decay=0.999, eps=1e-3):
         return tf.nn.batch_normalization(input, population_mean, population_var,
                                          beta, gamma, eps, name='batch_norm')
 
-    return tf.cond(is_training, batch_statistics, population_statistics)
+    return tf.cond(tf.cast(is_training, tf.bool), batch_statistics, population_statistics)
 
 
-def __instance_normalization(input, init_gain=0.02, eps=1e-9):
+def __instance_normalization(input, init_gain=0.02, eps=1e-9, name='weights'):
     """
     Compute instance normalization on the input.
     """
     with tf.variable_scope('instance_norm'):
         channels = input.get_shape().as_list()[3]
-        scale = tf.get_variable('weights', shape=[channels], dtype=tf.float32,
+        scale = tf.get_variable(name, shape=[channels], dtype=tf.float32,
                                 initializer=tf.initializers.truncated_normal(mean=1.0, stddev=init_gain))
-        offset = __biases_init(channels)
+        offset = __biases_init(channels, name=name+'_biases')
         mean, var = tf.nn.moments(input, axes=[1, 2], keep_dims=True)
         norm = scale * ((input - mean) / tf.sqrt(var + eps)) + offset
 
@@ -294,11 +293,11 @@ def __weights_init(size, in_channels, out_channels, init_type='normal', init_gai
     return weights
 
 
-def __biases_init(size, constant=0.0):
+def __biases_init(size, constant=0.0, name='biases'):
     """
     Initialize biases to a given constant.
     """
-    biases = tf.get_variable("biases", shape=[size], dtype=tf.float32,
+    biases = tf.get_variable(name, shape=[size], dtype=tf.float32,
                              initializer=tf.constant_initializer(constant))
 
     return biases
