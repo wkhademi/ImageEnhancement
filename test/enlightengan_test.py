@@ -24,7 +24,7 @@ class EnlightenGANTest(BaseTest):
             print("Must load in a model to test on.")
             sys.exit(1)
 
-        # build the CycleGAN graph
+        # build the EnlightenGAN graph
         graph = tf.Graph()
         with graph.as_default():
             enlightengan = EnlightenGANModel(self.opt, training=False)
@@ -37,13 +37,13 @@ class EnlightenGANTest(BaseTest):
             samples_dir = os.path.expanduser(self.opt.sample_directory)
 
             for idx in range(self.opt.num_samples):
-                real_image, generated_image = sess.run([enlightengan.realA, enhanced])
-                real_image_name = 'sampleA' + str(idx) + '.jpg'
-                generated_image_name = 'generatedB' + str(idx) + '.jpg'
+                low_light_image, enhanced_image = sess.run([enlightengan.low, enhanced])
+                low_light_image_name = 'low_light' + str(idx) + '.jpg'
+                enhanced_image_name = 'enhanced' + str(idx) + '.jpg'
 
                 # save real and generated image to samples directory
-                save_image(real_image, os.path.join(samples_dir, real_image_name))
-                save_image(generated_image, os.path.join(samples_dir, generated_image_name))
+                save_image(low_light_image, os.path.join(samples_dir, low_light_image_name))
+                save_image(enhanced_image, os.path.join(samples_dir, enhanced_image_name))
 
 
 if __name__ == '__main__':

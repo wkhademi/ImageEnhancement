@@ -24,6 +24,7 @@ Implementations of the following models are provided:
 - Download the Unpaired Shadow Removal (USR) dataset for shadow removal from: [USR Dataset](https://drive.google.com/file/d/1PPAX0W4eyfn1cUrb2aBefnbrmhB1htoJ/view)
 - Download the ISTD dataset for shadow removal from: [ISTD Dataset](https://drive.google.com/file/d/1I0qw-65KBA6np8vIZzO6oeiOvcDBttAY/view)
 - Download the EnlightenGAN dataset for low-light image enhancement from: [Google Drive](https://drive.google.com/drive/folders/1fwqz8-RnTfxgIIkebFG2Ej3jQFsYECh0)
+- Download the DIV2K - bicubic downscaling x4 dataset for super-resolution from: [Train Low-Res](https://data.vision.ee.ethz.ch/cvl/DIV2K/DIV2K_train_LR_bicubic_X4.zip) | [Train High-Res](https://data.vision.ee.ethz.ch/cvl/DIV2K/DIV2K_train_HR.zip) | [Test Low-Res](https://data.vision.ee.ethz.ch/cvl/DIV2K/validation_release/DIV2K_test_LR_bicubic_X4.zip)
 
 ## Updating PYTHONPATH
 To ensure all modules in repo can be found you must update your **PYTHONPATH** environment variable:

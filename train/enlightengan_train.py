@@ -70,8 +70,6 @@ class EnlightenGANTrain(BaseTrain):
                 try:
                     while step < max_steps:
                         try:
-                            enhanced_img = sess.run(enhanced)
-
                             # calculate losses for the generators and discriminators and minimize them
                             _, Gen_loss_val, D_loss_val, \
                             D_P_loss_val, sum = sess.run([optimizers, Gen_loss,

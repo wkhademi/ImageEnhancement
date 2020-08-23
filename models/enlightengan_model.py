@@ -88,20 +88,12 @@ class EnlightenGANModel(BaseModel):
                 height_offset = tf.random.uniform([self.opt.patchD_3], maxval=height-self.opt.patch_size-1, dtype=tf.int32)
                 width_offset = tf.random.uniform([self.opt.patchD_3], maxval=width-self.opt.patch_size-1, dtype=tf.int32)
 
-                height_offset = tf.tile(height_offset, [self.opt.batch_size])
-                width_offset = tf.tile(width_offset, [self.opt.batch_size])
-
-                low_patches = tf.keras.backend.repeat_elements(self.low, rep=self.opt.patchD_3, axis=0)
-                low_patches = tf.map_fn(lambda x: ops.crop(x[0], x[1], x[2], self.opt.patch_size),
-                                (low_patches, height_offset, width_offset), dtype=tf.float32)
-
-                normal_patches = tf.keras.backend.repeat_elements(self.normal, rep=self.opt.patchD_3, axis=0)
-                normal_patches = tf.map_fn(lambda x: ops.crop(x[0], x[1], x[2], self.opt.patch_size),
-                                    (normal_patches, height_offset, width_offset), dtype=tf.float32)
-
-                enhanced_patches = tf.keras.backend.repeat_elements(enhanced, rep=self.opt.patchD_3, axis=0)
-                enhanced_patches = tf.map_fn(lambda x: ops.crop(x[0], x[1], x[2], self.opt.patch_size),
-                                        (enhanced_patches, height_offset, width_offset), dtype=tf.float32)
+                low_patches = tf.map_fn(lambda x: ops.crop(self.low, x[0], x[1], self.opt.patch_size),
+                                        (height_offset, width_offset), dtype=tf.float32)
+                normal_patches = tf.map_fn(lambda x: ops.crop(self.normal, x[0], x[1], self.opt.patch_size),
+                                           (height_offset, width_offset), dtype=tf.float32)
+                enhanced_patches = tf.map_fn(lambda x: ops.crop(enhanced, x[0], x[1], self.opt.patch_size),
+                                             (height_offset, width_offset), dtype=tf.float32)
             else:
                 low_patches = None
                 normal_patches = None
@@ -199,7 +191,7 @@ class EnlightenGANModel(BaseModel):
 
         return loss
 
-    def __perceptual_loss(self, low, enhanced, low_patch=None, enhanced_patch=None, 
+    def __perceptual_loss(self, low, enhanced, low_patch=None, enhanced_patch=None,
                           low_patches=None, enhanced_patches=None):
         """
         Compute the self feature preserving loss on the low-light and enhanced image.
@@ -291,6 +283,6 @@ class EnlightenGANModel(BaseModel):
             if self.vgg16.layers[i].name == self.opt.vgg_choose:
                 break
 
-        vgg16_features = x 
+        vgg16_features = x
 
         return vgg16_features
