@@ -41,9 +41,10 @@ class SuperResDataset(BaseDataset):
         img = tf.image.decode_jpeg(img, channels=self.opt.channels)
         img = tf.image.random_crop(img, size=[self.opt.crop_size, self.opt.crop_size, self.opt.channels])
         img = tf.cast(img, dtype=tf.float32)
-        img = (img / 127.5) - 1.
         highres = tf.image.random_flip_left_right(img)
         lowres = tf.image.resize(highres, [self.opt.scale_size, self.opt.scale_size])
+        highres = (highres / 127.5) - 1.
+        lowres = (lowres / 255.)
 
         return highres, lowres
 
@@ -51,6 +52,6 @@ class SuperResDataset(BaseDataset):
         img = tf.io.read_file(path)
         img = tf.image.decode_jpeg(img, channels=self.opt.channels)
         img = tf.cast(img, dtype=tf.float32)
-        lowres = (img / 127.5) - 1.
+        lowres = (img / 255.)
 
         return lowres

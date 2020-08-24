@@ -89,6 +89,8 @@ class SRGANTrain(BaseTrain):
                                 except tf.errors.OutOfRangeError:  # reinitialize iterator every epoch
                                     sess.run([srgan.data_iter.initializer])
                                     break
+
+                        start_epoch = 0
                     else:
                         start_epoch = start_epoch - self.opt.num_epochs_init
 
@@ -116,6 +118,11 @@ class SRGANTrain(BaseTrain):
                             except tf.errors.OutOfRangeError:  # reinitialize iterator every epoch
                                 sess.run([srgan.data_iter.initializer])
                                 break
+
+                        # update the learning rate
+                        if epoch != 0 and (epoch % self.opt.decay_every == 0):
+                            new_lr_decay = self.opt.lr_decay**(epoch // self.opt.decay_every)
+                            sess.run(srgan.update_lr, feed_dict={srgan.new_lr: self.opt.lr*new_lr_decay})
                 except KeyboardInterrupt:  # save training before exiting
                     print("Saving models training progress to the `checkpoints` directory...")
                     save_path = saver.save(sess, checkpoint + '/model.ckpt', global_step=step)

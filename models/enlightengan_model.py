@@ -34,6 +34,9 @@ class EnlightenGANModel(BaseModel):
             self.low = self.dataA_iter.get_next()
 
     def build(self):
+        """
+        Build TensorFlow graph for EnlightenGAN model.
+        """
         # add ops for Generator (low light -> normal light) to graph
         self.G = Generator(channels=self.opt.channels, netG=self.opt.netG, ngf=self.opt.ngf,
                            norm_type=self.opt.layer_norm_type, init_type=self.opt.weight_init_type,
@@ -231,6 +234,23 @@ class EnlightenGANModel(BaseModel):
 
         return loss
 
+    def __vgg16_features(self, image):
+        """
+        Extract features from image using VGG16 model.
+        """
+        vgg16_in = tf.keras.applications.vgg16.preprocess_input((image+1)*127.5)
+        x = vgg16_in
+
+        for i in range(len(self.vgg16.layers)):
+            x = self.vgg16.layers[i](x)
+
+            if self.vgg16.layers[i].name == self.opt.vgg_choose:
+                break
+
+        vgg16_features = x
+
+        return vgg16_features
+
     def __optimizers(self, Gen_loss, D_loss, D_P_loss=None):
         """
         Modified optimizer taken from vanhuyz TensorFlow implementation of CycleGAN
@@ -269,20 +289,3 @@ class EnlightenGANModel(BaseModel):
 
         with tf.control_dependencies(optimizers):
             return tf.no_op(name='optimizers')
-
-    def __vgg16_features(self, image):
-        """
-        Extract features from image using VGG16 model.
-        """
-        vgg16_in = tf.keras.applications.vgg16.preprocess_input((image+1)*127.5)
-        x = vgg16_in
-
-        for i in range(len(self.vgg16.layers)):
-            x = self.vgg16.layers[i](x)
-
-            if self.vgg16.layers[i].name == self.opt.vgg_choose:
-                break
-
-        vgg16_features = x
-
-        return vgg16_features

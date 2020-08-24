@@ -97,6 +97,17 @@ def transpose_conv(input, in_channels, out_channels, filter_size=3, stride=2,
     return layer
 
 
+def flatten(input):
+    """
+    Flatten a tensor to [batch_size, -1]
+    """
+    shape = input.get_shape().as_list()
+
+    flattened = tf.reshape(input, [-1, shape[1]*shape[2]*shape[3]])
+
+    return flattened
+
+
 def max_pooling(input, filter_size=2, stride=2, padding='SAME'):
     """
     Perform max pooling on input.

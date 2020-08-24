@@ -27,43 +27,120 @@ class SRGANModel(BaseModel):
             self.lowres = self.data_iter.get_next()
 
     def build(self):
-        pass
-
-    def __optimizers(self, Gen_loss, D_loss, D_P_loss=None):
         """
-        Modified optimizer taken from vanhuyz TensorFlow implementation of CycleGAN
-        https://github.com/vanhuyz/CycleGAN-TensorFlow/blob/master/model.py
+        Build TensorFlow graph for SRGAN model.
         """
-        def make_optimizer(loss, variables, name='Adam'):
-            """ Adam optimizer with learning rate 0.0002 for the first 100k steps (~100 epochs)
-                and a linearly decaying rate that goes to zero over the next 100k steps
-            """
-            global_step = tf.Variable(0, trainable=False, name='global_step')
-            starter_learning_rate = self.opt.lr
-            end_learning_rate = 0.0
-            start_decay_step = self.opt.niter
-            decay_steps = self.opt.niter_decay
-            beta1 = self.opt.beta1
-            learning_rate = (tf.where(tf.greater_equal(global_step, start_decay_step),
-                                      tf.train.polynomial_decay(starter_learning_rate,
-                                                                global_step-start_decay_step,
-                                                                decay_steps, end_learning_rate,
-                                                                power=1.0),
-                                      starter_learning_rate))
+        # add ops for the generator to the graph
+        self.G = Generator()
 
-            learning_step = (tf.train.AdamOptimizer(learning_rate, beta1=beta1, name=name)
-                                .minimize(loss, global_step=global_step, var_list=variables))
+        if self.training:
+            # add ops for the discriminator to the graph
+            self.D = Discriminator(channels=self.opt.channels, ndf=self.opt.ndf, norm_type=self.opt.layer_norm_type,
+                                   init_type=self.opt.weight_init_type, init_gain=self.opt.weight_init_gain,
+                                   training=self.training, name='D')
 
-            return learning_step
+            # build feature extractor
+            self.vgg19 = tf.keras.applications.VGG19(include_top=False, input_shape=(None, None, 3))
+            self.vgg19.trainable = False
 
-        Gen_optimizer = make_optimizer(Gen_loss, self.G.variables, name='Adam_Gen')
-        D_optimizer = make_optimizer(D_loss, self.D.variables, name='Adam_D')
+            superres = self.G(self.lowres)
+
+            # add loss ops to graph
+            Gen_init_loss, Gen_loss, D_loss = self.__loss(superres, self.highres)
+
+            # add optimizer ops to graph
+            gen_optimizer, optimizers = self.__optimizers(Gen_init_loss, Gen_loss, D_loss)
+
+            return gen_optimizer, optimizers, Gen_init_loss, Gen_loss, D_loss
+        else:
+            superres = self.G(self.lowres)
+            return superres
+
+    def __loss(self, superres, highres):
+        """
+        Compute losses for generator and discriminators.
+        """
+        Gen_init_loss = self.__mse_loss(superres, highres)
+
+        Gen_loss = self.__mse_loss(superres, highres) + \
+                   self.__G_loss(self.D, superres) + \
+                   self.__perceptual_loss(superres, highres)
+
+        D_loss = self.__D_loss(self.D, superres, highres)
+
+        return Gen_init_loss, Gen_loss, D_loss
+
+    def __D_loss(self, D, superres, highres, eps=1e-12):
+        """
+        Compute the discriminator loss.
+
+        L_disc = -0.5 * [Expectation of log(D(B)) + Expectation of log(1 - D(G(A)))]
+        """
+        loss = -1 * (tf.reduce_mean(tf.log(D(highres) + eps)) + \
+                     tf.reduce_mean(tf.log(1 - D(superres) + eps)))
+
+        return loss
+
+    def __G_loss(self, D, superres, eps=1e-12):
+        """
+        Compute the generator loss.
+
+        L_gen = Expectation of -log(D(G(A)))
+        """
+        loss = -1e-3 * tf.reduce_mean(tf.log(D(superres) + eps))
+
+        return loss
+
+    def __mse_loss(self, superres, highres):
+        """
+        Compute the pixel-wise mean squared error.
+        """
+        loss = tf.reduce_mean(tf.square(superres - highres))
+
+        return loss
+
+    def __perceptual_loss(self, superres, highres):
+        """
+        Compute the perceptual loss on super-resolution and high-resolution images.
+        """
+        features_superres = self.__vgg19_features(superres)
+        features_highres = self.__vgg19_features(highres)
+
+        loss = 6e-3 * tf.reduce_mean(tf.square(features_superres - features_highres))
+
+        return loss
+
+    def __vgg19_features(self, image):
+        """
+        Extract features from image using VGG19 model.
+        """
+        vgg19_in = tf.keras.applications.vgg19.preprocess_input((image+1)*127.5)
+        x = vgg19_in
+
+        for i in range(len(self.vgg19.layers)):
+            x = self.vgg19.layers[i](x)
+
+            if self.vgg19.layers[i].name == self.opt.vgg_choose:
+                break
+
+        vgg19_features = x
+
+        return vgg19_features
+
+    def __optimizers(self, Gen_init_loss, Gen_loss, D_loss):
+        """
+        Create optimizers for generator and discriminator.
+        """
+        self.lr = tf.Variable(self.opt.lr, trainable=False)
+        self.new_lr = tf.placeholder(tf.float32, shape=[], name="new_lr")
+        self.update_lr = tf.assign(self.lr, self.new_lr)
+
+        Gen_optimizer = tf.train.AdamOptimizer(self.lr, beta1=self.opt.beta1, name='Adam_Gen')
+                            .minimize(Gen_loss, var_list=self.G.variables)
+        D_optimizer = tf.train.AdamOptimizer(self.lr, beta1=self.opt.beta1, name='Adam_D')
+                            .minimize(D_loss, var_list=self.D.variables)
 
         optimizers = [Gen_optimizer, D_optimizer]
 
-        if D_P_loss is not None:
-            D_P_optimizer = make_optimizer(D_P_loss, self.D_P.variables, name='Adam_D_P')
-            optimizers.append(D_P_optimizer)
-
         with tf.control_dependencies(optimizers):
-            return tf.no_op(name='optimizers')
+            return Gen_optimizer, tf.no_op(name='optimizers')

@@ -28,7 +28,7 @@ class SRGANTest(BaseTest):
         graph = tf.Graph()
         with graph.as_default():
             srgan = SRGANModel(self.opt, training=False)
-            highres = srgan.build()
+            superres = srgan.build()
             saver = tf.train.Saver()
 
         with tf.Session(graph=graph) as sess:
@@ -37,13 +37,13 @@ class SRGANTest(BaseTest):
             samples_dir = os.path.expanduser(self.opt.sample_directory)
 
             for idx in range(self.opt.num_samples):
-                lowres_image, highres_image = sess.run([srgan.lowres, highres])
+                lowres_image, superres_image = sess.run([srgan.lowres, superres])
                 lowres_image_name = 'lowres' + str(idx) + '.jpg'
-                highres_image_name = 'highres' + str(idx) + '.jpg'
+                superres_image_name = 'superres' + str(idx) + '.jpg'
 
                 # save real and generated image to samples directory
                 save_image(lowres_image, os.path.join(samples_dir, lowres_image_name))
-                save_image(highres_image, os.path.join(samples_dir, highres_image_name))
+                save_image(superres_image, os.path.join(samples_dir, superres_image_name))
 
 
 if __name__ == '__main__':

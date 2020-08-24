@@ -14,7 +14,7 @@ Implementations of the following models are provided:
 - Mask-ShadowGAN by Hu et al.: [Paper](https://arxiv.org/pdf/1903.10683.pdf) | [Code](https://github.com/xw-hu/Mask-ShadowGAN)
 - EnlightenGAN by Jiang et al.: [Paper](https://arxiv.org/pdf/1906.06972.pdf) | [Code](https://github.com/TAMU-VITA/EnlightenGAN)
 - DeShadowNet by Liangqiong et al. (in progress): [Paper](http://openaccess.thecvf.com/content_cvpr_2017/papers/Qu_DeshadowNet_A_Multi-Context_CVPR_2017_paper.pdf) | [Code](https://github.com/Liangqiong/DeShadowNet)
-- SRGAN by Dong et al. (in progress): [Paper](https://arxiv.org/pdf/1609.04802.pdf) | [Code](https://github.com/tensorlayer/srgan)
+- SRGAN by Dong et al.: [Paper](https://arxiv.org/pdf/1609.04802.pdf) | [Code](https://github.com/tensorlayer/srgan)
 
 ## Datasets
 - Download a CycleGAN dataset using:
@@ -55,7 +55,10 @@ python train/enlightengan_train.py --dirA /path/to/low_light_data --dirB /path/t
 To be added...
 
 #### SRGAN
-To be added...
+To train run:
+```
+python train/srgan_train.py --dir /path/to/high_res_data --batch_size 16 --scale_size 96 --crop_size 384 --weight_init_gain 0.02 --beta1 0.9
+```
 
 To continue training from a saved checkpoint, add the following argument to the end of the command line arguments passed into the training script you are running:
 ```
@@ -85,4 +88,7 @@ python test/enlightengan_test.py --dir /path/to/low_light_data --batch_size 1 --
 To be added...
 
 #### SRGAN
-To be added...
+To test the SRGAN model run:
+```
+python test/srgan_test.py --dir /path/to/low_res_data --batch_size 1 --load_model /checkpoint_dir --sample_directory /path/to/save/samples/to
+```
