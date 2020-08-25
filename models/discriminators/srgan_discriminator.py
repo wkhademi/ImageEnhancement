@@ -72,8 +72,13 @@ class Discriminator():
 
         x = ops.flatten(conv_block8)
 
-        dense1 = ops.dense()
+        dense = ops.dense(x, in_size=x.get_shape().as_list()[1], out_size=1024,
+                          weight_init_type=init_type, weight_init_gain=init_gain,
+                          norm_type=None, activation_type='LeakyReLU', is_training=is_training,
+                          scope='dense', reuse=self.reuse)
 
-        output = ops.dense()
+        output = ops.dense(dense, in_size=1024, out_size=1, weight_init_type=init_type,
+                           weight_init_gain=init_gain, norm_type=None, activation_type='sigmoid',
+                           is_training=is_training, scope='output', reuse=self.reuse)
 
         return output

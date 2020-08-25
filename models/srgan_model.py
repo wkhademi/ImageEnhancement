@@ -31,7 +31,9 @@ class SRGANModel(BaseModel):
         Build TensorFlow graph for SRGAN model.
         """
         # add ops for the generator to the graph
-        self.G = Generator()
+        self.G = Generator(channels=self.opt.channels, ngf=self.opt.ngf, norm_type=self.opt.layer_norm_type,
+                           init_type=self.opt.weight_init_type, init_gain=self.opt.weight_init_gain,
+                           dropout=self.opt.dropout, training=self.training, name='G')
 
         if self.training:
             # add ops for the discriminator to the graph

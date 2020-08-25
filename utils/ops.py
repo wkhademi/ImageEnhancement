@@ -29,12 +29,12 @@ def conv(input, in_channels, out_channels, filter_size, stride, padding_type='SA
             biases = __biases_init(out_channels, constant=bias_const)
             layer = tf.nn.bias_add(layer, biases)
 
-        # relu, leaky relu, or no activation
-        layer = __activation_fn(layer, slope=slope, activation_type=activation_type)
-
         # instance, batch, or no normalization
         layer = __normalization(layer, init_gain=weight_init_gain,
                                 is_training=is_training, norm_type=norm_type)
+
+        # relu, leaky relu, or no activation
+        layer = __activation_fn(layer, slope=slope, activation_type=activation_type)
 
     return layer
 
@@ -95,6 +95,41 @@ def transpose_conv(input, in_channels, out_channels, filter_size=3, stride=2,
         layer = __activation_fn(layer, activation_type=activation_type)
 
     return layer
+
+
+def dense(input, in_size, out_size, weight_init_type='normal', weight_init_gain=1.0,
+          use_bias=True, bias_const=0.0, norm_type='instance', activation_type='ReLU',
+          is_training=True, scope=None, reuse=False):
+    """
+    FullyConnected-Normalization-Activation layer
+    """
+    with tf.variable_scope(scope, reuse=reuse):
+        weights = __weights_init(None, in_size, out_size, init_type=weight_init_type,
+                                 init_gain=weight_init_gain)
+
+        layer = tf.matmul(input, weights)
+
+        if use_bias:
+            biases = __biases_init(out_size, constant=bias_const)
+            layer = tf.nn.bias_add(layer, biases)
+
+        # instance, batch, or no normalization
+        layer = __normalization(layer, init_gain=weight_init_gain,
+                                is_training=is_training, norm_type=norm_type)
+
+        # relu, leaky relu, or no activation
+        layer = __activation_fn(layer, activation_type=activation_type)
+
+    return layer
+
+
+def pixel_shuffle(input, block_size=2):
+    """
+    Upsample inputs by "block_size" using pixel shuffle
+    """
+    upsampled = tf.nn.depth_to_space(input, block_size, name='pixelshuffle_upsample')
+
+    return upsampled
 
 
 def flatten(input):
@@ -224,12 +259,27 @@ def __activation_fn(input, slope=0.2, activation_type='ReLU'):
         activation = tf.nn.relu(input, name='relu')
     elif activation_type == 'LeakyReLU':
         activation = tf.nn.leaky_relu(input, alpha=slope, name='leakyrelu')
+    elif activation_type == 'ParametricReLU':
+        activation = __parametric_relu(input, name='parametricrelu')
     elif activation_type == 'tanh':
         activation = tf.nn.tanh(input, name='tanh')
     elif activation_type == 'sigmoid':
         activation = tf.nn.sigmoid(input, name='sigmoid')
     else:
         activation = input
+
+    return activation
+
+
+def __parametric_relu(inputs, name='parametricrelu'):
+    """
+    Parametric ReLU activation function.
+    """
+    with tf.variable_scope(name):
+        alpha = tf.get_variable('alpha', shape=inputs.get_shape()[-1],
+                                initializer=tf.constant_initializer(0.1), dtype=tf.float32)
+
+        activation = tf.maximum(0., inputs) + alpha*tf.minimum(0., inputs)
 
     return activation
 
@@ -298,8 +348,12 @@ def __weights_init(size, in_channels, out_channels, init_type='normal', init_gai
     elif init_type == 'orthogonal':
         init = tf.initializers.orthogonal(gain=init_gain)
 
-    weights = tf.get_variable("weights", shape=[size, size, in_channels, out_channels],
-                              dtype=tf.float32, initializer=init)
+    if size is not None:  # convolution filter weights
+        weights = tf.get_variable("weights", shape=[size, size, in_channels, out_channels],
+                                  dtype=tf.float32, initializer=init)
+    else:  # fully connected weights
+        weights = tf.get_variable("weights", shape=[in_channels, out_channels],
+                                  dtype=tf.float32, initializer=init)
 
     return weights
 
