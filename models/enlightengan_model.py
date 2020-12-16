@@ -44,6 +44,8 @@ class EnlightenGANModel(BaseModel):
                            self_attention=self.opt.self_attention, times_residual=self.opt.times_residual,
                            skip=self.opt.skip, training=self.training, name='G')
 
+        gray = 1. - tf.image.rgb_to_grayscale((self.low+1.)/2.)
+
         if self.training:
             # add ops for discriminator to graph
             self.D = Discriminator(channels=self.opt.channels, netD=self.opt.netD, n_layers=self.opt.n_layers,
@@ -63,8 +65,6 @@ class EnlightenGANModel(BaseModel):
                 self.vgg16 = tf.keras.applications.VGG16(include_top=False,
                                                          input_shape=(None, None, 3))
                 self.vgg16.trainable = False
-
-            gray = 1. - tf.image.rgb_to_grayscale((self.low+1.)/2.)
 
             if self.opt.skip > 0:
                 enhanced, latent_enhanced = self.G(self.low, gray)
@@ -91,12 +91,15 @@ class EnlightenGANModel(BaseModel):
                 height_offset = tf.random.uniform([self.opt.patchD_3], maxval=height-self.opt.patch_size-1, dtype=tf.int32)
                 width_offset = tf.random.uniform([self.opt.patchD_3], maxval=width-self.opt.patch_size-1, dtype=tf.int32)
 
-                low_patches = tf.map_fn(lambda x: ops.crop(self.low, x[0], x[1], self.opt.patch_size),
-                                        (height_offset, width_offset), dtype=tf.float32)
-                normal_patches = tf.map_fn(lambda x: ops.crop(self.normal, x[0], x[1], self.opt.patch_size),
-                                           (height_offset, width_offset), dtype=tf.float32)
-                enhanced_patches = tf.map_fn(lambda x: ops.crop(enhanced, x[0], x[1], self.opt.patch_size),
-                                             (height_offset, width_offset), dtype=tf.float32)
+                low_patches = tf.reshape(tf.map_fn(lambda x: ops.crop(self.low, x[0], x[1], self.opt.patch_size),
+                                                   (height_offset, width_offset), dtype=tf.float32), 
+                                         [-1, self.opt.patch_size, self.opt.patch_size, self.opt.channels])
+                normal_patches = tf.reshape(tf.map_fn(lambda x: ops.crop(self.normal, x[0], x[1], self.opt.patch_size),
+                                                      (height_offset, width_offset), dtype=tf.float32),
+                                            [-1, self.opt.patch_size, self.opt.patch_size, self.opt.channels])
+                enhanced_patches = tf.reshape(tf.map_fn(lambda x: ops.crop(enhanced, x[0], x[1], self.opt.patch_size),
+                                                        (height_offset, width_offset), dtype=tf.float32),
+                                              [-1, self.opt.patch_size, self.opt.patch_size, self.opt.channels])
             else:
                 low_patches = None
                 normal_patches = None
@@ -118,7 +121,11 @@ class EnlightenGANModel(BaseModel):
 
             return enhanced, optimizers, Gen_loss, D_loss, D_P_loss
         else:
-            enhanced = self.G(self.low)[0] if self.opt.skip > 0 else self.G(self.low)
+            if self.opt.skip > 0:
+                enhanced, latent_enhanced = self.G(self.low, gray)
+            else:
+                enhanced = self.G(self.low, gray)
+
             return enhanced
 
     def __loss(self, low, normal, enhanced, low_patch, normal_patch, enhanced_patch,

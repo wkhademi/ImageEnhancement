@@ -2,3 +2,5 @@
 /checkpoints
 *.pyc
 *.tfcache.*
+Dockerfile
+start_docker.sh

@@ -3,7 +3,7 @@ Various models for handling underexposure, overexposure, super-resolution, shado
 
 ## Dependencies
 - Python 3.6
-- TensorFlow
+- TensorFlow v1.15
 - OpenCV
 - Pillow
 - scikit-image
